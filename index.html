@@ -1,0 +1,1723 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PontoApp — Controle de Jornada</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #141720;
+    --surface2: #1c2030;
+    --border: #252a38;
+    --accent: #00e5a0;
+    --accent2: #ff6b4a;
+    --accent3: #4a9eff;
+    --warn: #ffbe3d;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --card-shadow: 0 4px 24px rgba(0,0,0,0.4);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── GRID BG ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,160,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,160,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── SETUP SCREEN ── */
+  #setup-screen {
+    position: fixed; inset: 0;
+    background: var(--bg);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .setup-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 48px 40px;
+    max-width: 440px;
+    width: 100%;
+    box-shadow: var(--card-shadow);
+    position: relative;
+    overflow: hidden;
+  }
+  .setup-card::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(0,229,160,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .setup-logo {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .setup-title {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 8px;
+  }
+  .setup-sub {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 36px;
+    font-family: 'DM Mono', monospace;
+  }
+  .field-group { margin-bottom: 20px; }
+  .field-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .field-group input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 15px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .field-group input:focus { border-color: var(--accent); }
+  .btn-primary {
+    width: 100%;
+    background: var(--accent);
+    color: #0d0f14;
+    border: none;
+    border-radius: 10px;
+    padding: 16px;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: 'Syne', sans-serif;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: opacity .2s, transform .1s;
+    margin-top: 8px;
+  }
+  .btn-primary:hover { opacity: 0.88; }
+  .btn-primary:active { transform: scale(0.98); }
+
+  /* ── APP LAYOUT ── */
+  #app { position: relative; z-index: 1; display: none; }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(13,15,20,0.9);
+    backdrop-filter: blur(12px);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  .header-brand {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .brand-mark {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+  }
+  .brand-sub {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .header-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .user-pill {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color .2s;
+  }
+  .user-pill:hover { border-color: var(--accent); }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    padding: 20px 28px 0;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  .tab {
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color .2s, border-color .2s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-content { display: none; padding: 28px; }
+  .tab-content.active { display: block; }
+
+  /* ── HOME TAB ── */
+  .clock-banner {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 32px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .clock-banner::after {
+    content: '';
+    position: absolute;
+    right: -40px; top: -40px;
+    width: 180px; height: 180px;
+    background: radial-gradient(circle, rgba(0,229,160,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .clock-left .clock-time {
+    font-size: 52px;
+    font-weight: 800;
+    font-family: 'DM Mono', monospace;
+    color: var(--text);
+    line-height: 1;
+    letter-spacing: -2px;
+  }
+  .clock-left .clock-date {
+    font-size: 13px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    margin-top: 6px;
+  }
+  .clock-right {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-end;
+  }
+
+  .ponto-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 24px;
+    border-radius: 12px;
+    border: none;
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .2s;
+    letter-spacing: 0.5px;
+    min-width: 200px;
+    justify-content: center;
+  }
+  .ponto-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+  .ponto-btn-entrada {
+    background: rgba(0,229,160,0.15);
+    color: var(--accent);
+    border: 1px solid rgba(0,229,160,0.3);
+  }
+  .ponto-btn-entrada:not(:disabled):hover {
+    background: rgba(0,229,160,0.25);
+    border-color: var(--accent);
+  }
+  .ponto-btn-saida-almoco {
+    background: rgba(255,190,61,0.15);
+    color: var(--warn);
+    border: 1px solid rgba(255,190,61,0.3);
+  }
+  .ponto-btn-saida-almoco:not(:disabled):hover {
+    background: rgba(255,190,61,0.25);
+    border-color: var(--warn);
+  }
+  .ponto-btn-retorno {
+    background: rgba(74,158,255,0.15);
+    color: var(--accent3);
+    border: 1px solid rgba(74,158,255,0.3);
+  }
+  .ponto-btn-retorno:not(:disabled):hover {
+    background: rgba(74,158,255,0.25);
+    border-color: var(--accent3);
+  }
+  .ponto-btn-saida {
+    background: rgba(255,107,74,0.15);
+    color: var(--accent2);
+    border: 1px solid rgba(255,107,74,0.3);
+  }
+  .ponto-btn-saida:not(:disabled):hover {
+    background: rgba(255,107,74,0.25);
+    border-color: var(--accent2);
+  }
+
+  /* ── STATUS HOJE ── */
+  .hoje-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 700px) {
+    .hoje-grid { grid-template-columns: repeat(2, 1fr); }
+    .clock-banner { flex-direction: column; align-items: flex-start; }
+    .clock-right { align-items: flex-start; width: 100%; }
+    .ponto-btn { min-width: unset; width: 100%; }
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+  }
+  .stat-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .stat-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--text);
+  }
+  .stat-value.ok { color: var(--accent); }
+  .stat-value.warn { color: var(--warn); }
+  .stat-value.danger { color: var(--accent2); }
+
+  /* ── REGISTROS DO DIA ── */
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .registros-list {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 24px;
+  }
+  .registro-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+  }
+  .registro-item:last-child { border-bottom: none; }
+  .registro-tipo {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-family: 'Syne', sans-serif;
+    min-width: 120px;
+  }
+  .registro-hora { color: var(--accent); }
+  .registro-del {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px;
+    border-radius: 4px;
+    transition: color .2s;
+  }
+  .registro-del:hover { color: var(--accent2); }
+
+  /* ── ALERTA BANNER ── */
+  .alert-banner {
+    background: rgba(255,190,61,0.1);
+    border: 1px solid rgba(255,190,61,0.3);
+    border-radius: 12px;
+    padding: 14px 18px;
+    font-size: 13px;
+    color: var(--warn);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .alert-banner.info {
+    background: rgba(0,229,160,0.08);
+    border-color: rgba(0,229,160,0.25);
+    color: var(--accent);
+  }
+
+  /* ── HISTÓRICO ── */
+  .hist-controls {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .select-styled {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    outline: none;
+    cursor: pointer;
+  }
+  .select-styled:focus { border-color: var(--accent); }
+  .btn-sec {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text);
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    transition: all .2s;
+  }
+  .btn-sec:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-whats {
+    background: rgba(37,211,102,0.15);
+    border-color: rgba(37,211,102,0.3);
+    color: #25d366;
+  }
+  .btn-whats:hover { background: rgba(37,211,102,0.25); border-color: #25d366; }
+
+  .hist-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .hist-table th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .hist-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid rgba(37,42,56,0.5);
+    font-family: 'DM Mono', monospace;
+    vertical-align: top;
+  }
+  .hist-table tr:last-child td { border-bottom: none; }
+  .hist-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'Syne', sans-serif;
+    letter-spacing: 0.5px;
+  }
+  .badge-ok { background: rgba(0,229,160,0.15); color: var(--accent); }
+  .badge-extra { background: rgba(74,158,255,0.15); color: var(--accent3); }
+  .badge-falta { background: rgba(255,107,74,0.15); color: var(--accent2); }
+  .badge-abs { background: rgba(255,190,61,0.15); color: var(--warn); }
+
+  /* ── RESUMO SEMANAL / MENSAL ── */
+  .resumo-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  @media (max-width: 600px) { .resumo-grid { grid-template-columns: repeat(2, 1fr); } }
+  .resumo-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+  }
+  .resumo-card .rc-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .resumo-card .rc-value {
+    font-family: 'DM Mono', monospace;
+    font-size: 28px;
+    font-weight: 500;
+  }
+  .resumo-card .rc-sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* ── AUSÊNCIAS ── */
+  .ausencia-form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 20px;
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 12px;
+    align-items: end;
+  }
+  @media (max-width: 600px) {
+    .ausencia-form { grid-template-columns: 1fr; }
+  }
+  .ausencia-form label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 8px;
+  }
+  .ausencia-form input,
+  .ausencia-form select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 14px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    outline: none;
+    width: 100%;
+    transition: border-color .2s;
+  }
+  .ausencia-form input:focus,
+  .ausencia-form select:focus { border-color: var(--accent); }
+  .ausencia-list { display: flex; flex-direction: column; gap: 8px; }
+  .ausencia-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+  }
+
+  /* ── CONFIGURAÇÕES ── */
+  .config-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .config-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    color: var(--text);
+  }
+  .config-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 16px;
+  }
+  .config-row:last-child { border-bottom: none; }
+  .config-row label {
+    font-size: 13px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    flex: 1;
+  }
+  .config-row input, .config-row select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    outline: none;
+    width: 160px;
+    transition: border-color .2s;
+  }
+  .config-row input:focus, .config-row select:focus { border-color: var(--accent); }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed;
+    bottom: 32px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    padding: 14px 24px;
+    font-size: 14px;
+    color: var(--text);
+    font-weight: 600;
+    z-index: 999;
+    transition: transform .3s ease;
+    white-space: nowrap;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    backdrop-filter: blur(4px);
+  }
+  .modal-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 36px;
+    max-width: 480px;
+    width: 100%;
+    box-shadow: var(--card-shadow);
+  }
+  .modal-title {
+    font-size: 20px;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+  .modal-body {
+    font-size: 14px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    line-height: 1.7;
+    margin-bottom: 24px;
+    white-space: pre-line;
+  }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+  .btn-ghost {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    transition: all .2s;
+  }
+  .btn-ghost:hover { border-color: var(--muted); color: var(--text); }
+
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
+  .dot-green { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .dot-yellow { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
+  .dot-red { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
+  .dot-blue { background: var(--accent3); box-shadow: 0 0 6px var(--accent3); }
+
+  hr.divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 20px 0;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════ SETUP SCREEN ══════════ -->
+<div id="setup-screen">
+  <div class="setup-card">
+    <div class="setup-logo">● PontoApp</div>
+    <h1 class="setup-title">Bem-vindo ao<br>seu controle de ponto</h1>
+    <p class="setup-sub">Configure seu perfil para começar</p>
+    <div class="field-group">
+      <label>Seu nome completo</label>
+      <input type="text" id="setup-nome" placeholder="Ex: João da Silva" autocomplete="off">
+    </div>
+    <div class="field-group">
+      <label>WhatsApp (com DDD, sem +55)</label>
+      <input type="tel" id="setup-whats" placeholder="11999998888" autocomplete="off">
+    </div>
+    <button class="btn-primary" onclick="salvarPerfil()">Começar →</button>
+  </div>
+</div>
+
+<!-- ══════════ APP ══════════ -->
+<div id="app">
+  <header>
+    <div class="header-brand">
+      <span class="brand-mark">● Ponto</span>
+      <span class="brand-sub">App</span>
+    </div>
+    <div class="header-user">
+      <div class="user-pill" onclick="abrirPerfil()" id="user-name-pill">—</div>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('home')">Registrar</div>
+    <div class="tab" onclick="switchTab('historico')">Histórico</div>
+    <div class="tab" onclick="switchTab('relatorio')">Relatório</div>
+    <div class="tab" onclick="switchTab('ausencias')">Ausências</div>
+    <div class="tab" onclick="switchTab('config')">Config</div>
+  </div>
+
+  <!-- ── TAB: HOME ── -->
+  <div id="tab-home" class="tab-content active">
+    <div id="alerta-horas" style="display:none"></div>
+    <div id="alerta-dia1" style="display:none"></div>
+
+    <div class="clock-banner">
+      <div class="clock-left">
+        <div class="clock-time" id="clock-display">--:--:--</div>
+        <div class="clock-date" id="date-display">carregando...</div>
+      </div>
+      <div class="clock-right">
+        <button class="ponto-btn ponto-btn-entrada" id="btn-entrada" onclick="registrarPonto('entrada')">
+          <span class="dot dot-green"></span> Entrada
+        </button>
+        <button class="ponto-btn ponto-btn-saida-almoco" id="btn-saida-almoco" onclick="registrarPonto('saida_almoco')">
+          <span class="dot dot-yellow"></span> Saída Almoço
+        </button>
+        <button class="ponto-btn ponto-btn-retorno" id="btn-retorno" onclick="registrarPonto('retorno_almoco')">
+          <span class="dot dot-blue"></span> Retorno Almoço
+        </button>
+        <button class="ponto-btn ponto-btn-saida" id="btn-saida" onclick="registrarPonto('saida')">
+          <span class="dot dot-red"></span> Saída
+        </button>
+      </div>
+    </div>
+
+    <div class="hoje-grid">
+      <div class="stat-card">
+        <div class="stat-label">Entrada</div>
+        <div class="stat-value" id="stat-entrada">--:--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Saída Almoço</div>
+        <div class="stat-value" id="stat-sa">--:--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Retorno</div>
+        <div class="stat-value" id="stat-ra">--:--</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Saída</div>
+        <div class="stat-value" id="stat-saida">--:--</div>
+      </div>
+    </div>
+
+    <div class="hoje-grid" style="grid-template-columns: repeat(3,1fr)">
+      <div class="stat-card">
+        <div class="stat-label">Trabalhado hoje</div>
+        <div class="stat-value ok" id="stat-trabalhado">0h00</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Meta do dia</div>
+        <div class="stat-value" id="stat-meta">8h00</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Saldo hoje</div>
+        <div class="stat-value" id="stat-saldo">+0h00</div>
+      </div>
+    </div>
+
+    <div class="section-title">Registros de hoje</div>
+    <div class="registros-list" id="registros-hoje">
+      <div class="empty-state">Nenhum registro hoje</div>
+    </div>
+  </div>
+
+  <!-- ── TAB: HISTÓRICO ── -->
+  <div id="tab-historico" class="tab-content">
+    <div class="hist-controls">
+      <select class="select-styled" id="hist-mes" onchange="renderHistorico()"></select>
+      <select class="select-styled" id="hist-ano" onchange="renderHistorico()"></select>
+      <button class="btn-sec btn-whats" onclick="enviarRelatorioWhats('mensal')">📱 Enviar via WhatsApp</button>
+      <button class="btn-sec" onclick="exportarCSV()">⬇ Exportar CSV</button>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="hist-table">
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Entrada</th>
+            <th>S. Almoço</th>
+            <th>R. Almoço</th>
+            <th>Saída</th>
+            <th>Trabalhado</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="hist-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── TAB: RELATÓRIO ── -->
+  <div id="tab-relatorio" class="tab-content">
+    <div class="hist-controls">
+      <select class="select-styled" id="rel-tipo" onchange="renderRelatorio()">
+        <option value="semanal">Semanal</option>
+        <option value="mensal">Mensal</option>
+      </select>
+      <select class="select-styled" id="rel-mes" onchange="renderRelatorio()"></select>
+      <select class="select-styled" id="rel-ano" onchange="renderRelatorio()"></select>
+      <button class="btn-sec btn-whats" onclick="enviarRelatorioWhats('relatorio')">📱 WhatsApp</button>
+    </div>
+    <div id="relatorio-content"></div>
+  </div>
+
+  <!-- ── TAB: AUSÊNCIAS ── -->
+  <div id="tab-ausencias" class="tab-content">
+    <div class="ausencia-form">
+      <div>
+        <label>Data</label>
+        <input type="date" id="aus-data">
+      </div>
+      <div>
+        <label>Tipo</label>
+        <select id="aus-tipo">
+          <option value="falta">Falta</option>
+          <option value="folga">Folga / Folga compensada</option>
+          <option value="feriado">Feriado</option>
+          <option value="ferias">Férias</option>
+          <option value="atestado">Atestado médico</option>
+          <option value="meio_periodo">Meio período</option>
+        </select>
+      </div>
+      <button class="btn-primary" style="width:auto;padding:12px 24px;margin-top:0" onclick="adicionarAusencia()">Adicionar</button>
+    </div>
+    <div class="section-title">Ausências registradas</div>
+    <div class="ausencia-list" id="ausencia-list">
+      <div class="empty-state">Nenhuma ausência registrada</div>
+    </div>
+  </div>
+
+  <!-- ── TAB: CONFIG ── -->
+  <div id="tab-config" class="tab-content">
+    <div class="config-section">
+      <div class="config-title">Perfil</div>
+      <div class="config-row">
+        <label>Nome</label>
+        <input type="text" id="cfg-nome">
+      </div>
+      <div class="config-row">
+        <label>WhatsApp</label>
+        <input type="tel" id="cfg-whats">
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn-primary" style="width:auto;padding:12px 24px" onclick="salvarConfig()">Salvar alterações</button>
+      </div>
+    </div>
+
+    <div class="config-section">
+      <div class="config-title">Jornada padrão</div>
+      <div class="config-row">
+        <label>Entrada (Seg–Qui)</label>
+        <input type="time" id="cfg-entrada" value="08:00">
+      </div>
+      <div class="config-row">
+        <label>Saída (Seg–Qui)</label>
+        <input type="time" id="cfg-saida" value="18:00">
+      </div>
+      <div class="config-row">
+        <label>Saída (Sexta)</label>
+        <input type="time" id="cfg-saida-sex" value="17:00">
+      </div>
+      <div class="config-row">
+        <label>Almoço (minutos)</label>
+        <input type="number" id="cfg-almoco" value="60" min="30" max="120">
+      </div>
+      <div style="margin-top:14px">
+        <button class="btn-primary" style="width:auto;padding:12px 24px" onclick="salvarJornada()">Salvar jornada</button>
+      </div>
+    </div>
+
+    <div class="config-section">
+      <div class="config-title">Dados</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn-sec" onclick="exportarCSV()">⬇ Exportar CSV</button>
+        <button class="btn-sec" style="color:var(--accent2);border-color:rgba(255,107,74,0.3)" onclick="limparDados()">🗑 Limpar todos os dados</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-title" id="modal-title"></div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-actions" id="modal-actions"></div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  STORAGE HELPERS
+// ══════════════════════════════════════════════
+const LS = {
+  get: k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set: (k, v) => localStorage.setItem(k, JSON.stringify(v)),
+  rm: k => localStorage.removeItem(k),
+};
+
+// ══════════════════════════════════════════════
+//  DEFAULTS / CONSTANTES
+// ══════════════════════════════════════════════
+const JORNADA_DEFAULT = {
+  entrada: '08:00',
+  saida: '18:00',
+  saida_sex: '17:00',
+  almoco_min: 60,
+};
+
+const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const DIAS_SEMANA = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const TIPOS_AUSENCIA = {
+  falta: 'Falta', folga: 'Folga', feriado: 'Feriado',
+  ferias: 'Férias', atestado: 'Atestado', meio_periodo: 'Meio Período'
+};
+
+function getPerfil() { return LS.get('perfil') || {}; }
+function getJornada() { return Object.assign({}, JORNADA_DEFAULT, LS.get('jornada') || {}); }
+function getRegistros() { return LS.get('registros') || {}; }
+function getAusencias() { return LS.get('ausencias') || []; }
+
+// ══════════════════════════════════════════════
+//  INICIALIZAÇÃO
+// ══════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  const perfil = getPerfil();
+  if (perfil.nome && perfil.whats) {
+    iniciarApp();
+  } else {
+    document.getElementById('setup-screen').style.display = 'flex';
+  }
+  popularSelects();
+  iniciarRelogio();
+});
+
+function salvarPerfil() {
+  const nome = document.getElementById('setup-nome').value.trim();
+  const whats = document.getElementById('setup-whats').value.replace(/\D/g, '');
+  if (!nome) { toast('Informe seu nome'); return; }
+  if (!whats || whats.length < 10) { toast('Informe um WhatsApp válido'); return; }
+  LS.set('perfil', { nome, whats });
+  document.getElementById('setup-screen').style.display = 'none';
+  iniciarApp();
+}
+
+function iniciarApp() {
+  const perfil = getPerfil();
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('user-name-pill').textContent = perfil.nome?.split(' ')[0] || '—';
+  const j = getJornada();
+  document.getElementById('cfg-nome').value = perfil.nome || '';
+  document.getElementById('cfg-whats').value = perfil.whats || '';
+  document.getElementById('cfg-entrada').value = j.entrada;
+  document.getElementById('cfg-saida').value = j.saida;
+  document.getElementById('cfg-saida-sex').value = j.saida_sex;
+  document.getElementById('cfg-almoco').value = j.almoco_min;
+  renderHome();
+  renderAusencias();
+  verificarAlertas();
+}
+
+// ══════════════════════════════════════════════
+//  RELÓGIO
+// ══════════════════════════════════════════════
+function iniciarRelogio() {
+  function tick() {
+    const now = new Date();
+    document.getElementById('clock-display').textContent =
+      now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    document.getElementById('date-display').textContent =
+      now.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+    updateStatsTrabalhado();
+  }
+  tick();
+  setInterval(tick, 1000);
+}
+
+// ══════════════════════════════════════════════
+//  CHAVE DO DIA
+// ══════════════════════════════════════════════
+function keyHoje() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function getDiaData(key) {
+  const regs = getRegistros();
+  return regs[key] || {};
+}
+
+function setDiaData(key, data) {
+  const regs = getRegistros();
+  regs[key] = data;
+  LS.set('registros', regs);
+}
+
+// ══════════════════════════════════════════════
+//  REGISTRAR PONTO
+// ══════════════════════════════════════════════
+function registrarPonto(tipo) {
+  const key = keyHoje();
+  const dia = getDiaData(key);
+  const now = new Date();
+  const hora = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+  if (tipo === 'entrada' && dia.entrada) { toast('Entrada já registrada'); return; }
+  if (tipo === 'saida_almoco' && !dia.entrada) { toast('Registre a entrada primeiro'); return; }
+  if (tipo === 'saida_almoco' && dia.saida_almoco) { toast('Saída almoço já registrada'); return; }
+  if (tipo === 'retorno_almoco' && !dia.saida_almoco) { toast('Registre a saída do almoço primeiro'); return; }
+  if (tipo === 'retorno_almoco' && dia.retorno_almoco) { toast('Retorno já registrado'); return; }
+  if (tipo === 'saida' && !dia.entrada) { toast('Registre a entrada primeiro'); return; }
+  if (tipo === 'saida' && dia.saida) { toast('Saída já registrada'); return; }
+
+  dia[tipo] = hora;
+  setDiaData(key, dia);
+  toast(`✓ ${labelTipo(tipo)} registrado às ${hora}`);
+  renderHome();
+}
+
+function labelTipo(t) {
+  const m = { entrada:'Entrada', saida_almoco:'Saída Almoço', retorno_almoco:'Retorno Almoço', saida:'Saída' };
+  return m[t] || t;
+}
+
+// ══════════════════════════════════════════════
+//  RENDER HOME
+// ══════════════════════════════════════════════
+function renderHome() {
+  const key = keyHoje();
+  const dia = getDiaData(key);
+  const hoje = new Date();
+  const dow = hoje.getDay(); // 0=Dom
+
+  document.getElementById('stat-entrada').textContent = dia.entrada || '--:--';
+  document.getElementById('stat-sa').textContent = dia.saida_almoco || '--:--';
+  document.getElementById('stat-ra').textContent = dia.retorno_almoco || '--:--';
+  document.getElementById('stat-saida').textContent = dia.saida || '--:--';
+
+  const meta = metaDia(hoje);
+  document.getElementById('stat-meta').textContent = minToHM(meta);
+
+  // Botões estado
+  document.getElementById('btn-entrada').disabled = !!dia.entrada;
+  document.getElementById('btn-saida-almoco').disabled = !dia.entrada || !!dia.saida_almoco;
+  document.getElementById('btn-retorno').disabled = !dia.saida_almoco || !!dia.retorno_almoco;
+  document.getElementById('btn-saida').disabled = !dia.entrada || !!dia.saida;
+
+  // Lista de registros
+  const lista = document.getElementById('registros-hoje');
+  const tipos = ['entrada', 'saida_almoco', 'retorno_almoco', 'saida'];
+  const items = tipos.filter(t => dia[t]);
+  if (items.length === 0) {
+    lista.innerHTML = '<div class="empty-state">Nenhum registro hoje</div>';
+  } else {
+    lista.innerHTML = items.map(t => `
+      <div class="registro-item">
+        <span class="registro-tipo">${labelTipo(t)}</span>
+        <span class="registro-hora">${dia[t]}</span>
+        <button class="registro-del" onclick="deletarRegistro('${key}','${t}')">✕</button>
+      </div>
+    `).join('');
+  }
+
+  updateStatsTrabalhado();
+}
+
+function deletarRegistro(key, tipo) {
+  const dia = getDiaData(key);
+  delete dia[tipo];
+  setDiaData(key, dia);
+  renderHome();
+  toast('Registro removido');
+}
+
+function updateStatsTrabalhado() {
+  const key = keyHoje();
+  const dia = getDiaData(key);
+  const hoje = new Date();
+  const meta = metaDia(hoje);
+  const trabMin = calcTrabalhado(dia, hoje);
+  const saldo = trabMin - meta;
+  const el = document.getElementById('stat-trabalhado');
+  const elS = document.getElementById('stat-saldo');
+  if (el) el.textContent = minToHM(trabMin);
+  if (elS) {
+    elS.textContent = (saldo >= 0 ? '+' : '-') + minToHM(Math.abs(saldo));
+    elS.className = 'stat-value ' + (saldo >= 0 ? 'ok' : 'warn');
+  }
+}
+
+// ══════════════════════════════════════════════
+//  CÁLCULOS
+// ══════════════════════════════════════════════
+function metaDia(date) {
+  const dow = date.getDay();
+  if (dow === 0 || dow === 6) return 0;
+  const j = getJornada();
+  const saida = dow === 5 ? j.saida_sex : j.saida;
+  const minEntrada = toMin(j.entrada);
+  const minSaida = toMin(saida);
+  return minSaida - minEntrada - j.almoco_min;
+}
+
+function toMin(hhmm) {
+  if (!hhmm) return 0;
+  const [h, m] = hhmm.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function minToHM(min) {
+  const sign = min < 0 ? '-' : '';
+  const abs = Math.abs(Math.round(min));
+  const h = Math.floor(abs / 60);
+  const m = abs % 60;
+  return `${sign}${h}h${String(m).padStart(2,'0')}`;
+}
+
+function calcTrabalhado(dia, dateObj) {
+  // Calcula minutos trabalhados considerando pausa de almoço
+  if (!dia.entrada) return 0;
+  const entMin = toMin(dia.entrada);
+  let total = 0;
+
+  const saidaRef = dia.saida
+    ? toMin(dia.saida)
+    : (dateObj ? (dateObj.getHours() * 60 + dateObj.getMinutes()) : null);
+  if (!saidaRef) return 0;
+
+  if (dia.saida_almoco) {
+    const saAlmMin = toMin(dia.saida_almoco);
+    total += Math.max(0, saAlmMin - entMin);
+    if (dia.retorno_almoco) {
+      const retMin = toMin(dia.retorno_almoco);
+      total += Math.max(0, saidaRef - retMin);
+    }
+    // se saiu pro almoço mas não retornou ainda, só conta até saída almoço
+  } else {
+    total = Math.max(0, saidaRef - entMin);
+  }
+  return total;
+}
+
+// ══════════════════════════════════════════════
+//  HISTÓRICO
+// ══════════════════════════════════════════════
+function renderHistorico() {
+  const mes = parseInt(document.getElementById('hist-mes').value);
+  const ano = parseInt(document.getElementById('hist-ano').value);
+  const tbody = document.getElementById('hist-tbody');
+  const regs = getRegistros();
+  const ausencias = getAusencias();
+  const rows = [];
+
+  const diasMes = new Date(ano, mes + 1, 0).getDate();
+  for (let d = 1; d <= diasMes; d++) {
+    const date = new Date(ano, mes, d);
+    const dow = date.getDay();
+    if (dow === 0 || dow === 6) continue;
+    const key = `${ano}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dia = regs[key] || {};
+    const aus = ausencias.find(a => a.data === key);
+    const meta = metaDia(date);
+    const trabMin = calcTrabalhado(dia, null);
+    const saldo = dia.saida ? trabMin - meta : null;
+
+    let status = '';
+    if (aus) {
+      status = `<span class="badge badge-abs">${TIPOS_AUSENCIA[aus.tipo] || aus.tipo}</span>`;
+    } else if (isHoje(key)) {
+      status = '<span class="badge badge-ok">Hoje</span>';
+    } else if (!dia.entrada && new Date(key) < new Date()) {
+      status = '<span class="badge badge-falta">Sem registro</span>';
+    } else if (saldo !== null && saldo > 0) {
+      status = `<span class="badge badge-extra">+${minToHM(saldo)}</span>`;
+    } else if (saldo !== null && saldo < -5) {
+      status = `<span class="badge badge-falta">${minToHM(saldo)}</span>`;
+    } else if (saldo !== null) {
+      status = '<span class="badge badge-ok">OK</span>';
+    }
+
+    rows.push(`
+      <tr>
+        <td>${DIAS_SEMANA[dow]}, ${String(d).padStart(2,'0')}/${String(mes+1).padStart(2,'0')}</td>
+        <td>${dia.entrada || '—'}</td>
+        <td>${dia.saida_almoco || '—'}</td>
+        <td>${dia.retorno_almoco || '—'}</td>
+        <td>${dia.saida || '—'}</td>
+        <td>${dia.entrada ? minToHM(trabMin) : '—'}</td>
+        <td>${status}</td>
+      </tr>
+    `);
+  }
+
+  tbody.innerHTML = rows.length ? rows.join('') : '<tr><td colspan="7"><div class="empty-state">Sem dados</div></td></tr>';
+}
+
+function isHoje(key) { return key === keyHoje(); }
+
+// ══════════════════════════════════════════════
+//  RELATÓRIO
+// ══════════════════════════════════════════════
+function renderRelatorio() {
+  const tipo = document.getElementById('rel-tipo').value;
+  const mes = parseInt(document.getElementById('rel-mes').value);
+  const ano = parseInt(document.getElementById('rel-ano').value);
+  const el = document.getElementById('relatorio-content');
+
+  const stats = calcEstatisticas(mes, ano);
+
+  let html = `
+    <div class="resumo-grid">
+      <div class="resumo-card">
+        <div class="rc-label">Dias trabalhados</div>
+        <div class="rc-value ok">${stats.diasTrabalhados}</div>
+        <div class="rc-sub">de ${stats.diasUteis} úteis</div>
+      </div>
+      <div class="resumo-card">
+        <div class="rc-label">Horas trabalhadas</div>
+        <div class="rc-value">${minToHM(stats.totalTrab)}</div>
+        <div class="rc-sub">meta: ${minToHM(stats.totalMeta)}</div>
+      </div>
+      <div class="resumo-card">
+        <div class="rc-label">Horas extras</div>
+        <div class="rc-value" style="color:var(--accent3)">${minToHM(stats.totalExtra)}</div>
+        <div class="rc-sub">&nbsp;</div>
+      </div>
+      <div class="resumo-card">
+        <div class="rc-label">Horas faltantes</div>
+        <div class="rc-value ${stats.totalFalta > 0 ? 'danger' : 'ok'}">${minToHM(stats.totalFalta)}</div>
+        <div class="rc-sub">&nbsp;</div>
+      </div>
+      <div class="resumo-card">
+        <div class="rc-label">Saldo geral</div>
+        <div class="rc-value ${stats.saldo >= 0 ? 'ok' : 'danger'}">${stats.saldo >= 0 ? '+' : ''}${minToHM(stats.saldo)}</div>
+        <div class="rc-sub">&nbsp;</div>
+      </div>
+      <div class="resumo-card">
+        <div class="rc-label">Previsão HE p/ zerar</div>
+        <div class="rc-value warn">${stats.diasHENeeded > 0 ? stats.diasHENeeded + ' dias' : 'OK'}</div>
+        <div class="rc-sub">+1h/dia de margem</div>
+      </div>
+    </div>
+  `;
+
+  if (tipo === 'semanal') {
+    html += renderSemanal(mes, ano);
+  }
+
+  el.innerHTML = html;
+}
+
+function calcEstatisticas(mes, ano) {
+  const regs = getRegistros();
+  const ausencias = getAusencias();
+  const hoje = new Date();
+  const diasMes = new Date(ano, mes + 1, 0).getDate();
+
+  let diasUteis = 0, diasTrabalhados = 0;
+  let totalTrab = 0, totalMeta = 0, totalExtra = 0, totalFalta = 0;
+
+  for (let d = 1; d <= diasMes; d++) {
+    const date = new Date(ano, mes, d);
+    const dow = date.getDay();
+    if (dow === 0 || dow === 6) continue;
+    diasUteis++;
+    const key = `${ano}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const aus = ausencias.find(a => a.data === key);
+    const isFuturo = date > hoje;
+    if (isFuturo) {
+      totalMeta += metaDia(date);
+      continue;
+    }
+    if (aus && (aus.tipo === 'feriado' || aus.tipo === 'folga' || aus.tipo === 'ferias' || aus.tipo === 'atestado')) {
+      continue;
+    }
+    const dia = regs[key] || {};
+    const meta = aus?.tipo === 'meio_periodo' ? metaDia(date) / 2 : metaDia(date);
+    totalMeta += meta;
+    if (dia.entrada) {
+      diasTrabalhados++;
+      const trab = calcTrabalhado(dia, dia.saida ? null : (isHoje(key) ? hoje : null));
+      totalTrab += trab;
+      const saldo = trab - meta;
+      if (saldo > 0) totalExtra += saldo;
+      else totalFalta += Math.abs(saldo);
+    } else {
+      totalFalta += meta;
+    }
+  }
+
+  const saldo = totalTrab - totalMeta;
+  // Previsão: quantos dias a +1h/dia p/ zerar falta + margem 2 dias
+  const diasHENeeded = totalFalta > 0 ? Math.ceil(totalFalta / 60) + 2 : 0;
+
+  return { diasUteis, diasTrabalhados, totalTrab, totalMeta, totalExtra, totalFalta, saldo, diasHENeeded };
+}
+
+function renderSemanal(mes, ano) {
+  const regs = getRegistros();
+  const diasMes = new Date(ano, mes + 1, 0).getDate();
+  const semanas = {};
+
+  for (let d = 1; d <= diasMes; d++) {
+    const date = new Date(ano, mes, d);
+    const dow = date.getDay();
+    if (dow === 0 || dow === 6) continue;
+    const weekNum = Math.ceil(d / 7);
+    if (!semanas[weekNum]) semanas[weekNum] = { meta: 0, trab: 0, dias: [] };
+    const key = `${ano}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dia = regs[key] || {};
+    const meta = metaDia(date);
+    const trab = dia.entrada ? calcTrabalhado(dia, dia.saida ? null : (isHoje(key) ? new Date() : null)) : 0;
+    semanas[weekNum].meta += meta;
+    semanas[weekNum].trab += trab;
+    semanas[weekNum].dias.push(d);
+  }
+
+  let html = '<div class="section-title" style="margin-top:8px">Resumo por semana</div>';
+  html += '<div style="display:flex;flex-direction:column;gap:8px">';
+  for (const [sem, data] of Object.entries(semanas)) {
+    const saldo = data.trab - data.meta;
+    html += `
+      <div class="stat-card" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap">
+        <span style="font-size:13px;color:var(--muted);font-family:'DM Mono',monospace">Semana ${sem} — dias ${data.dias[0]}–${data.dias[data.dias.length-1]}</span>
+        <span style="font-family:'DM Mono',monospace;font-size:14px">${minToHM(data.trab)} / ${minToHM(data.meta)}</span>
+        <span class="badge ${saldo >= 0 ? 'badge-extra' : 'badge-falta'}">${saldo >= 0 ? '+' : ''}${minToHM(saldo)}</span>
+      </div>
+    `;
+  }
+  html += '</div>';
+  return html;
+}
+
+// ══════════════════════════════════════════════
+//  AUSÊNCIAS
+// ══════════════════════════════════════════════
+function adicionarAusencia() {
+  const data = document.getElementById('aus-data').value;
+  const tipo = document.getElementById('aus-tipo').value;
+  if (!data) { toast('Selecione uma data'); return; }
+  const aus = getAusencias();
+  const idx = aus.findIndex(a => a.data === data);
+  if (idx >= 0) aus[idx] = { data, tipo };
+  else aus.push({ data, tipo });
+  aus.sort((a, b) => a.data.localeCompare(b.data));
+  LS.set('ausencias', aus);
+  renderAusencias();
+  toast('Ausência registrada');
+}
+
+function renderAusencias() {
+  const aus = getAusencias();
+  const el = document.getElementById('ausencia-list');
+  if (!aus.length) { el.innerHTML = '<div class="empty-state">Nenhuma ausência registrada</div>'; return; }
+  el.innerHTML = aus.map((a, i) => {
+    const [y, m, d] = a.data.split('-');
+    const date = new Date(parseInt(y), parseInt(m)-1, parseInt(d));
+    const label = date.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+    return `
+      <div class="ausencia-item">
+        <span>${label}</span>
+        <span class="badge badge-abs">${TIPOS_AUSENCIA[a.tipo] || a.tipo}</span>
+        <button class="registro-del" onclick="removerAusencia(${i})">✕</button>
+      </div>
+    `;
+  }).join('');
+}
+
+function removerAusencia(i) {
+  const aus = getAusencias();
+  aus.splice(i, 1);
+  LS.set('ausencias', aus);
+  renderAusencias();
+  toast('Ausência removida');
+}
+
+// ══════════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════════
+function salvarConfig() {
+  const nome = document.getElementById('cfg-nome').value.trim();
+  const whats = document.getElementById('cfg-whats').value.replace(/\D/g, '');
+  if (!nome || !whats) { toast('Preencha nome e WhatsApp'); return; }
+  LS.set('perfil', { nome, whats });
+  document.getElementById('user-name-pill').textContent = nome.split(' ')[0];
+  toast('✓ Perfil salvo');
+}
+
+function salvarJornada() {
+  LS.set('jornada', {
+    entrada: document.getElementById('cfg-entrada').value,
+    saida: document.getElementById('cfg-saida').value,
+    saida_sex: document.getElementById('cfg-saida-sex').value,
+    almoco_min: parseInt(document.getElementById('cfg-almoco').value),
+  });
+  toast('✓ Jornada salva');
+  renderHome();
+}
+
+// ══════════════════════════════════════════════
+//  WHATSAPP
+// ══════════════════════════════════════════════
+function gerarTextoRelatorio(mes, ano) {
+  const stats = calcEstatisticas(mes, ano);
+  const mesNome = MESES[mes];
+  const perfil = getPerfil();
+  const regs = getRegistros();
+  const diasMes = new Date(ano, mes + 1, 0).getDate();
+
+  let detalhe = '';
+  for (let d = 1; d <= diasMes; d++) {
+    const date = new Date(ano, mes, d);
+    const dow = date.getDay();
+    if (dow === 0 || dow === 6) continue;
+    const key = `${ano}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dia = regs[key] || {};
+    if (dia.entrada) {
+      const trab = calcTrabalhado(dia, dia.saida ? null : null);
+      detalhe += `\n  ${String(d).padStart(2,'0')}: ${dia.entrada}→${dia.saida || '?'} (${minToHM(trab)})`;
+    }
+  }
+
+  return `📋 *Relatório de Ponto — ${mesNome}/${ano}*\n` +
+    `👤 ${perfil.nome}\n\n` +
+    `✅ Dias trabalhados: ${stats.diasTrabalhados}/${stats.diasUteis}\n` +
+    `⏱ Total trabalhado: ${minToHM(stats.totalTrab)}\n` +
+    `🎯 Meta mensal: ${minToHM(stats.totalMeta)}\n` +
+    `➕ Horas extras: ${minToHM(stats.totalExtra)}\n` +
+    `➖ Horas faltantes: ${minToHM(stats.totalFalta)}\n` +
+    `📊 Saldo: ${stats.saldo >= 0 ? '+' : ''}${minToHM(stats.saldo)}\n` +
+    (stats.diasHENeeded > 0 ? `⚠️ Dias p/ zerar (+1h/dia): ${stats.diasHENeeded}\n` : '') +
+    `\n📆 Detalhamento:${detalhe}\n\n` +
+    `_Enviado pelo PontoApp_`;
+}
+
+function enviarRelatorioWhats(origem) {
+  let mes, ano;
+  if (origem === 'mensal' || origem === 'relatorio') {
+    const mEl = document.getElementById(origem === 'relatorio' ? 'rel-mes' : 'hist-mes');
+    const aEl = document.getElementById(origem === 'relatorio' ? 'rel-ano' : 'hist-ano');
+    mes = parseInt(mEl.value);
+    ano = parseInt(aEl.value);
+  } else {
+    const now = new Date();
+    mes = now.getMonth();
+    ano = now.getFullYear();
+  }
+  const perfil = getPerfil();
+  if (!perfil.whats) { toast('Configure seu WhatsApp nas Config'); return; }
+  const texto = gerarTextoRelatorio(mes, ano);
+  const url = `https://wa.me/55${perfil.whats}?text=${encodeURIComponent(texto)}`;
+  window.open(url, '_blank');
+}
+
+// ══════════════════════════════════════════════
+//  ALERTAS AUTOMÁTICOS
+// ══════════════════════════════════════════════
+function verificarAlertas() {
+  const hoje = new Date();
+  const dia = hoje.getDate();
+  const mes = hoje.getMonth();
+  const ano = hoje.getFullYear();
+
+  // Alerta dia 01 — relatório mensal do mês anterior
+  const ultimoAlerta1 = LS.get('ultimo_alerta_dia1');
+  const chaveHoje = `${ano}-${mes}-${dia}`;
+  if (dia === 1 && ultimoAlerta1 !== chaveHoje) {
+    const mesPrev = mes === 0 ? 11 : mes - 1;
+    const anoPrev = mes === 0 ? ano - 1 : ano;
+    const bannerDia1 = document.getElementById('alerta-dia1');
+    bannerDia1.style.display = 'flex';
+    bannerDia1.className = 'alert-banner info';
+    bannerDia1.innerHTML = `
+      📅 Hoje é dia 01! Relatório de ${MESES[mesPrev]}/${anoPrev} pronto para enviar.
+      <button class="btn-sec btn-whats" style="margin-left:auto;white-space:nowrap" onclick="enviarRelatorioWhats('auto');marcarAlerta1()">📱 Enviar agora</button>
+    `;
+    LS.set('ultimo_alerta_dia1', chaveHoje);
+  }
+
+  // Alerta de horas faltantes
+  const stats = calcEstatisticas(mes, ano);
+  const ultimoAlertaH = LS.get('ultimo_alerta_horas');
+  if (stats.totalFalta > 0 && stats.diasHENeeded > 0) {
+    const diasRestMes = calcDiasUteisRestantes(mes, ano);
+    // Alerta quando faltas = (diasRestMes - 2) horas de HE a 1h/dia
+    const limiar = (diasRestMes - 2) * 60; // minutos
+    if (stats.totalFalta >= limiar && ultimoAlertaH !== chaveHoje) {
+      const bannerH = document.getElementById('alerta-horas');
+      bannerH.style.display = 'flex';
+      bannerH.className = 'alert-banner';
+      bannerH.innerHTML = `
+        ⚠️ Você tem ${minToHM(stats.totalFalta)} de falta. Restam ~${diasRestMes} dias úteis. Precisará de ${stats.diasHENeeded} dias de hora extra (+1h/dia).
+        <button class="btn-sec btn-whats" style="margin-left:auto;white-space:nowrap" onclick="enviarAlertaHorasWhats();marcarAlertaHoras()">📱 Alertar</button>
+      `;
+    }
+  }
+}
+
+function marcarAlerta1() {
+  const hoje = new Date();
+  LS.set('ultimo_alerta_dia1', `${hoje.getFullYear()}-${hoje.getMonth()}-${hoje.getDate()}`);
+}
+function marcarAlertaHoras() {
+  const hoje = new Date();
+  LS.set('ultimo_alerta_horas', `${hoje.getFullYear()}-${hoje.getMonth()}-${hoje.getDate()}`);
+}
+
+function calcDiasUteisRestantes(mes, ano) {
+  const hoje = new Date();
+  const diasMes = new Date(ano, mes + 1, 0).getDate();
+  let count = 0;
+  for (let d = hoje.getDate(); d <= diasMes; d++) {
+    const date = new Date(ano, mes, d);
+    const dow = date.getDay();
+    if (dow !== 0 && dow !== 6) count++;
+  }
+  return count;
+}
+
+function enviarAlertaHorasWhats() {
+  const perfil = getPerfil();
+  if (!perfil.whats) { toast('Configure seu WhatsApp nas Config'); return; }
+  const hoje = new Date();
+  const stats = calcEstatisticas(hoje.getMonth(), hoje.getFullYear());
+  const diasRest = calcDiasUteisRestantes(hoje.getMonth(), hoje.getFullYear());
+  const texto = `⚠️ *Alerta de Horas Faltantes — PontoApp*\n\n` +
+    `Olá, ${perfil.nome}!\n\n` +
+    `Você acumulou *${minToHM(stats.totalFalta)}* de horas faltantes.\n` +
+    `Restam *${diasRest} dias úteis* no mês.\n` +
+    `Fazendo *+1h/dia* de hora extra, precisará de *${stats.diasHENeeded} dias*.\n\n` +
+    `⏱ Não deixe acumular mais!\n\n_PontoApp_`;
+  const url = `https://wa.me/55${perfil.whats}?text=${encodeURIComponent(texto)}`;
+  window.open(url, '_blank');
+  marcarAlertaHoras();
+}
+
+// ══════════════════════════════════════════════
+//  EXPORTAR CSV
+// ══════════════════════════════════════════════
+function exportarCSV() {
+  const mes = parseInt(document.getElementById('hist-mes')?.value ?? new Date().getMonth());
+  const ano = parseInt(document.getElementById('hist-ano')?.value ?? new Date().getFullYear());
+  const regs = getRegistros();
+  const ausencias = getAusencias();
+  let csv = 'Data,DiaSemana,Entrada,SaidaAlmoco,RetornoAlmoco,Saida,Trabalhado,Meta,Saldo,Status\n';
+  const diasMes = new Date(ano, mes + 1, 0).getDate();
+  for (let d = 1; d <= diasMes; d++) {
+    const date = new Date(ano, mes, d);
+    const dow = date.getDay();
+    if (dow === 0 || dow === 6) continue;
+    const key = `${ano}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dia = regs[key] || {};
+    const aus = ausencias.find(a => a.data === key);
+    const meta = metaDia(date);
+    const trab = dia.entrada ? calcTrabalhado(dia, null) : 0;
+    const saldo = dia.saida ? trab - meta : '';
+    const status = aus ? TIPOS_AUSENCIA[aus.tipo] || aus.tipo : (dia.entrada ? 'Trabalhado' : 'Sem registro');
+    csv += `${key},${DIAS_SEMANA[dow]},${dia.entrada||''},${dia.saida_almoco||''},${dia.retorno_almoco||''},${dia.saida||''},${dia.entrada?minToHM(trab):''},${minToHM(meta)},${saldo!==''?(saldo>=0?'+':'')+minToHM(saldo):''},${status}\n`;
+  }
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `ponto_${String(mes+1).padStart(2,'0')}_${ano}.csv`;
+  a.click();
+}
+
+// ══════════════════════════════════════════════
+//  SELECTS / POPULAT
+// ══════════════════════════════════════════════
+function popularSelects() {
+  const agora = new Date();
+  const sels = [
+    ['hist-mes', 'hist-ano'],
+    ['rel-mes', 'rel-ano'],
+  ];
+  sels.forEach(([mesId, anoId]) => {
+    const mEl = document.getElementById(mesId);
+    const aEl = document.getElementById(anoId);
+    if (!mEl || !aEl) return;
+    MESES.forEach((m, i) => {
+      const opt = document.createElement('option');
+      opt.value = i; opt.textContent = m;
+      if (i === agora.getMonth()) opt.selected = true;
+      mEl.appendChild(opt);
+    });
+    for (let y = agora.getFullYear() - 2; y <= agora.getFullYear() + 1; y++) {
+      const opt = document.createElement('option');
+      opt.value = y; opt.textContent = y;
+      if (y === agora.getFullYear()) opt.selected = true;
+      aEl.appendChild(opt);
+    }
+  });
+  // data padrão ausência
+  document.getElementById('aus-data').value = keyHoje();
+}
+
+// ══════════════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const names = ['home','historico','relatorio','ausencias','config'];
+    t.classList.toggle('active', names[i] === name);
+  });
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'historico') renderHistorico();
+  if (name === 'relatorio') renderRelatorio();
+  if (name === 'ausencias') renderAusencias();
+}
+
+// ══════════════════════════════════════════════
+//  MODAL / TOAST
+// ══════════════════════════════════════════════
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+function abrirPerfil() {
+  switchTab('config');
+}
+
+function limparDados() {
+  showModal(
+    '⚠️ Limpar todos os dados',
+    'Esta ação é irreversível! Todos os registros, ausências e configurações serão apagados.\n\nDeseja continuar?',
+    [
+      { label: 'Cancelar', cls: 'btn-ghost', action: fecharModal },
+      { label: 'Limpar tudo', cls: 'btn-primary', style: 'background:var(--accent2);color:#fff', action: () => {
+        localStorage.clear();
+        fecharModal();
+        location.reload();
+      }},
+    ]
+  );
+}
+
+function showModal(title, body, actions) {
+  document.getElementById('modal-title').textContent = title;
+  document.getElementById('modal-body').textContent = body;
+  const actEl = document.getElementById('modal-actions');
+  actEl.innerHTML = '';
+  actions.forEach(a => {
+    const btn = document.createElement('button');
+    btn.textContent = a.label;
+    btn.className = a.cls;
+    if (a.style) btn.style.cssText = a.style;
+    btn.onclick = a.action;
+    actEl.appendChild(btn);
+  });
+  document.getElementById('modal').style.display = 'flex';
+}
+
+function fecharModal() {
+  document.getElementById('modal').style.display = 'none';
+}
+
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal')) fecharModal();
+});
+</script>
+</body>
+</html>
