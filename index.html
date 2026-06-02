@@ -1,0 +1,1765 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no, maximum-scale=1">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PontoApp">
+<meta name="theme-color" content="#0d0f14">
+<title>PontoApp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════
+   TOKENS — iPhone 14 specifics:
+   Screen: 390×844pt  /  logical 390×844
+   Status bar (Dynamic Island): 59pt
+   Home indicator:  34pt
+   Bottom safe area: 34pt
+   Tap target minimum: 44×44pt
+═══════════════════════════════════════════ */
+:root {
+  --bg:       #0d0f14;
+  --surf:     #141720;
+  --surf2:    #1c2030;
+  --border:   #252a38;
+  --green:    #00e5a0;
+  --red:      #ff6b4a;
+  --blue:     #4a9eff;
+  --warn:     #ffbe3d;
+  --text:     #e8eaf0;
+  --muted:    #6b7280;
+  --r:        14px;
+
+  /* iPhone 14 safe areas */
+  --si-top:   env(safe-area-inset-top,    59px);
+  --si-bot:   env(safe-area-inset-bottom, 34px);
+  --si-l:     env(safe-area-inset-left,    0px);
+  --si-r:     env(safe-area-inset-right,   0px);
+
+  /* Layout heights */
+  --hdr:      calc(52px + var(--si-top));
+  --nav:      calc(56px + var(--si-bot));
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  height: 100%;
+  /* prevent iOS font inflation */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  font-family: 'Syne', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100%;
+  /* lock scroll at body level; pages scroll inside */
+  overflow: hidden;
+  overscroll-behavior: none;
+  /* prevent callout on long-press */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* allow text selection only in inputs */
+input, textarea { -webkit-user-select: auto; user-select: auto; }
+
+/* subtle grid bg */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,229,160,.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,160,.022) 1px, transparent 1px);
+  background-size: 36px 36px;
+  pointer-events: none; z-index: 0;
+}
+
+/* kill tap highlight on all interactives */
+button, a, [onclick] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* iOS select arrow */
+select { -webkit-appearance: none; appearance: none; }
+
+/* ═══════════════════════════════════════════
+   SETUP SCREEN  (shown only on first launch)
+═══════════════════════════════════════════ */
+#setup {
+  position: fixed; inset: 0; z-index: 300;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 32px 24px;
+  padding-top:  calc(32px + var(--si-top));
+  padding-bottom: calc(32px + var(--si-bot));
+}
+.setup-card {
+  background: var(--surf);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 36px 24px;
+  width: 100%; max-width: 380px;
+  position: relative; overflow: hidden;
+}
+.setup-card::before {
+  content: '';
+  position: absolute; top: -70px; right: -70px;
+  width: 200px; height: 200px;
+  background: radial-gradient(circle, rgba(0,229,160,.13) 0%, transparent 70%);
+  pointer-events: none;
+}
+.sc-logo { font-size: 11px; font-weight: 700; letter-spacing: 4px; color: var(--green); text-transform: uppercase; margin-bottom: 10px; }
+.sc-title { font-size: 26px; font-weight: 800; line-height: 1.2; margin-bottom: 6px; }
+.sc-sub { font-size: 13px; color: var(--muted); margin-bottom: 30px; font-family: 'DM Mono', monospace; }
+.fg { margin-bottom: 16px; }
+.fg label { display: block; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+.fg input {
+  width: 100%; background: var(--surf2); border: 1.5px solid var(--border);
+  border-radius: 12px; padding: 16px 14px; font-size: 17px; color: var(--text);
+  font-family: 'DM Mono', monospace; outline: none;
+  transition: border-color .2s;
+  /* iOS: prevent zoom on focus (font ≥16px) */
+}
+.fg input:focus { border-color: var(--green); }
+
+/* ═══════════════════════════════════════════
+   SHARED BUTTONS
+═══════════════════════════════════════════ */
+.btn-primary {
+  width: 100%; background: var(--green); color: #0d0f14;
+  border: none; border-radius: 14px;
+  /* 50pt → well above 44pt minimum */
+  padding: 16px; font-size: 16px; font-weight: 700;
+  font-family: 'Syne', sans-serif; cursor: pointer;
+  letter-spacing: .5px; transition: opacity .15s, transform .1s;
+  min-height: 52px;
+}
+.btn-primary:active { transform: scale(.97); opacity: .82; }
+
+.btn-ghost {
+  width: 100%; background: none;
+  border: 1.5px solid var(--border);
+  border-radius: 14px; padding: 16px; font-size: 15px; font-weight: 700;
+  color: var(--muted); cursor: pointer; font-family: 'Syne', sans-serif;
+  transition: all .15s; min-height: 52px;
+}
+.btn-ghost:active { border-color: var(--muted); color: var(--text); }
+
+.btn-sec {
+  background: var(--surf2); border: 1.5px solid var(--border);
+  border-radius: 10px; padding: 11px 14px;
+  font-size: 12px; font-weight: 700; letter-spacing: .8px;
+  text-transform: uppercase; color: var(--text);
+  cursor: pointer; font-family: 'Syne', sans-serif;
+  white-space: nowrap; flex-shrink: 0; min-height: 44px;
+  transition: all .15s;
+}
+.btn-sec:active { border-color: var(--green); color: var(--green); }
+.btn-whats {
+  background: rgba(37,211,102,.1);
+  border-color: rgba(37,211,102,.3); color: #25d366;
+}
+.btn-whats:active { background: rgba(37,211,102,.2); }
+
+.btn-save {
+  width: 100%; background: var(--green); color: #0d0f14;
+  border: none; border-radius: 12px; padding: 16px;
+  font-size: 15px; font-weight: 700; font-family: 'Syne', sans-serif;
+  cursor: pointer; letter-spacing: .5px; margin-top: 16px;
+  min-height: 52px; transition: opacity .15s, transform .1s;
+}
+.btn-save:active { transform: scale(.97); opacity: .82; }
+
+.btn-danger {
+  width: 100%; background: rgba(255,107,74,.1); color: var(--red);
+  border: 1.5px solid rgba(255,107,74,.3); border-radius: 12px; padding: 16px;
+  font-size: 14px; font-weight: 700; font-family: 'Syne', sans-serif;
+  cursor: pointer; min-height: 52px; margin-top: 8px; transition: all .15s;
+}
+.btn-danger:active { background: rgba(255,107,74,.2); }
+
+/* ═══════════════════════════════════════════
+   APP SHELL
+═══════════════════════════════════════════ */
+#app {
+  position: fixed; inset: 0; z-index: 1;
+  display: none; flex-direction: column;
+}
+
+/* ── HEADER ── */
+.app-hdr {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: var(--hdr);
+  display: flex; align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 20px 12px;
+  /* extra left/right for notch */
+  padding-left:  calc(20px + var(--si-l));
+  padding-right: calc(20px + var(--si-r));
+  background: rgba(13,15,20,.93);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid var(--border);
+  z-index: 50;
+}
+.brand { display: flex; align-items: baseline; gap: 6px; }
+.brand-mark { font-size: 17px; font-weight: 800; color: var(--green); }
+.brand-sub  { font-size: 10px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); }
+
+/* 44×44pt pill tap target */
+.user-pill {
+  background: var(--surf2); border: 1.5px solid var(--border);
+  border-radius: 22px; padding: 9px 16px;
+  font-size: 14px; font-weight: 600; color: var(--text);
+  cursor: pointer; min-width: 44px; min-height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  transition: border-color .2s;
+}
+.user-pill:active { border-color: var(--green); }
+
+/* ── SCROLL BODY ── */
+.app-body {
+  position: fixed; inset: 0;
+  top: var(--hdr);
+  bottom: var(--nav);
+  overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  /* GPU-accelerated scroll layer */
+  transform: translateZ(0);
+  padding-left:  var(--si-l);
+  padding-right: var(--si-r);
+}
+
+/* ── BOTTOM NAV ── */
+.bot-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: var(--nav);
+  display: flex; align-items: flex-start;
+  padding-top: 6px;
+  padding-left:  var(--si-l);
+  padding-right: var(--si-r);
+  background: rgba(13,15,20,.96);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-top: 1px solid var(--border);
+  z-index: 50;
+}
+.nav-item {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; gap: 3px;
+  /* 44pt tap area */
+  min-height: 44px; padding: 4px 0;
+  cursor: pointer;
+}
+.nav-icon  { font-size: 23px; line-height: 1; }
+.nav-label {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  text-transform: uppercase; color: var(--muted);
+  transition: color .2s;
+}
+.nav-item.active .nav-label { color: var(--green); }
+.nav-dot {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--green); opacity: 0;
+  transition: opacity .2s;
+}
+.nav-item.active .nav-dot { opacity: 1; }
+
+/* ═══════════════════════════════════════════
+   PAGES
+═══════════════════════════════════════════ */
+.page { display: none; padding: 18px 16px; }
+.page.active { display: block; }
+.page-title { font-size: 24px; font-weight: 800; margin-bottom: 4px; }
+.page-sub   { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 20px; }
+
+/* ═══════════════════════════════════════════
+   HOME
+═══════════════════════════════════════════ */
+.clock-card {
+  background: var(--surf); border: 1px solid var(--border);
+  border-radius: 20px; padding: 20px 18px; margin-bottom: 12px;
+  position: relative; overflow: hidden;
+}
+.clock-card::after {
+  content: '';
+  position: absolute; right: -28px; top: -28px;
+  width: 130px; height: 130px;
+  background: radial-gradient(circle, rgba(0,229,160,.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+.clock-row { display: flex; align-items: center; justify-content: space-between; }
+.clock-time {
+  font-size: 44px; font-weight: 800;
+  font-family: 'DM Mono', monospace;
+  color: var(--text); line-height: 1; letter-spacing: -1.5px;
+}
+.clock-date { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 4px; }
+.day-badge {
+  background: rgba(0,229,160,.12); border: 1px solid rgba(0,229,160,.25);
+  color: var(--green); border-radius: 8px; padding: 5px 12px;
+  font-size: 12px; font-weight: 700; letter-spacing: .5px;
+}
+
+/* tolerance bar */
+.tol-bar {
+  margin-top: 12px; padding: 8px 10px;
+  background: var(--surf2); border-radius: 8px;
+  font-size: 11px; font-family: 'DM Mono', monospace; color: var(--muted);
+  display: flex; align-items: center; gap: 6px;
+}
+.tol-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.tol-ok   { background: var(--green); box-shadow: 0 0 5px var(--green); }
+.tol-warn { background: var(--warn);  box-shadow: 0 0 5px var(--warn); }
+
+/* ponto buttons: 2×2 grid, each ≥88pt tall */
+.ponto-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; margin-bottom: 12px;
+}
+.ponto-btn {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 5px; padding: 20px 10px;
+  border-radius: 16px; border: 1.5px solid;
+  font-family: 'Syne', sans-serif;
+  font-size: 13px; font-weight: 700;
+  cursor: pointer; min-height: 88px;
+  position: relative; transition: all .12s;
+  letter-spacing: .2px;
+}
+.ponto-btn:active { transform: scale(.95); }
+.ponto-btn:disabled { opacity: .25; pointer-events: none; }
+.btn-icon { font-size: 26px; }
+.btn-time { font-size: 11px; font-family: 'DM Mono', monospace; font-weight: 400; opacity: .85; }
+
+/* tolerance ring on active ponto */
+.ponto-btn.in-tol::after {
+  content: '±5min';
+  position: absolute; top: 6px; right: 8px;
+  font-size: 9px; font-family: 'DM Mono', monospace; font-weight: 700;
+  color: var(--warn); opacity: .8;
+}
+
+.pb-e  { background: rgba(0,229,160,.1);  color: var(--green); border-color: rgba(0,229,160,.25); }
+.pb-sa { background: rgba(255,190,61,.1); color: var(--warn);  border-color: rgba(255,190,61,.25); }
+.pb-ra { background: rgba(74,158,255,.1); color: var(--blue);  border-color: rgba(74,158,255,.25); }
+.pb-s  { background: rgba(255,107,74,.1); color: var(--red);   border-color: rgba(255,107,74,.25); }
+.pb-e:not(:disabled):active  { background: rgba(0,229,160,.22);  border-color: var(--green); }
+.pb-sa:not(:disabled):active { background: rgba(255,190,61,.22); border-color: var(--warn); }
+.pb-ra:not(:disabled):active { background: rgba(74,158,255,.22); border-color: var(--blue); }
+.pb-s:not(:disabled):active  { background: rgba(255,107,74,.22); border-color: var(--red); }
+
+/* stats */
+.stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.stat-mini { background: var(--surf); border: 1px solid var(--border); border-radius: var(--r); padding: 14px 11px; }
+.sl { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
+.sv { font-family: 'DM Mono', monospace; font-size: 18px; font-weight: 500; }
+.sv.ok     { color: var(--green); }
+.sv.warn   { color: var(--warn);  }
+.sv.danger { color: var(--red);   }
+.sv.info   { color: var(--blue);  }
+
+/* section header */
+.sec-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.sec-label { font-size: 10px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--muted); }
+.sec-action {
+  font-size: 13px; font-weight: 700; color: var(--green);
+  background: none; border: none; cursor: pointer; padding: 8px 0;
+  font-family: 'Syne', sans-serif; min-height: 44px; display: flex; align-items: center;
+}
+
+/* registro list */
+.reg-list { background: var(--surf); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; margin-bottom: 14px; }
+.reg-item {
+  display: flex; align-items: center;
+  /* 52pt row → comfortable finger target */
+  padding: 14px 16px; border-bottom: 1px solid var(--border); gap: 12px;
+  min-height: 52px;
+}
+.reg-item:last-child { border-bottom: none; }
+.reg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.reg-info { flex: 1; }
+.reg-tipo { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.reg-hora { font-family: 'DM Mono', monospace; font-size: 17px; font-weight: 500; }
+.reg-tag  { font-size: 9px; background: rgba(255,190,61,.15); color: var(--warn); border-radius: 4px; padding: 2px 6px; font-weight: 700; margin-left: 6px; }
+.tol-tag  { font-size: 9px; background: rgba(0,229,160,.12);  color: var(--green); border-radius: 4px; padding: 2px 6px; font-weight: 700; margin-left: 6px; }
+/* delete: 44×44pt tap */
+.reg-del {
+  background: none; border: none; color: var(--muted);
+  font-size: 20px; cursor: pointer;
+  width: 44px; height: 44px; border-radius: 22px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: color .15s;
+}
+.reg-del:active { color: var(--red); }
+
+/* alerts */
+.alert-banner {
+  border-radius: 12px; padding: 12px 14px;
+  font-size: 13px; margin-bottom: 12px;
+  display: flex; align-items: flex-start; gap: 10px; line-height: 1.45;
+}
+.alert-banner.warn { background: rgba(255,190,61,.1);  border: 1px solid rgba(255,190,61,.3);  color: var(--warn); }
+.alert-banner.info { background: rgba(0,229,160,.08);  border: 1px solid rgba(0,229,160,.25);  color: var(--green); }
+.alert-text { flex: 1; }
+.alert-btn {
+  background: none; border: 1.5px solid currentColor;
+  border-radius: 8px; padding: 7px 11px;
+  font-size: 11px; font-weight: 700; font-family: 'Syne', sans-serif;
+  cursor: pointer; color: inherit; white-space: nowrap;
+  flex-shrink: 0; min-height: 44px; display: flex; align-items: center;
+}
+.alert-btn:active { opacity: .7; }
+
+/* ═══════════════════════════════════════════
+   HISTÓRICO
+═══════════════════════════════════════════ */
+.filter-row {
+  display: flex; gap: 8px; margin-bottom: 14px; overflow-x: auto;
+  padding-bottom: 2px; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.filter-row::-webkit-scrollbar { display: none; }
+.sel {
+  background: var(--surf2); border: 1.5px solid var(--border);
+  border-radius: 10px; padding: 11px 13px; font-size: 14px;
+  color: var(--text); font-family: 'DM Mono', monospace;
+  outline: none; cursor: pointer; flex-shrink: 0;
+  min-height: 44px;
+}
+.sel:focus { border-color: var(--green); }
+
+.hist-card { background: var(--surf); border: 1px solid var(--border); border-radius: var(--r); margin-bottom: 8px; overflow: hidden; }
+.hist-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px; cursor: pointer; min-height: 56px;
+}
+.hist-date { font-size: 14px; font-weight: 700; }
+.hist-dow  { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+.hist-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.hist-horas { font-family: 'DM Mono', monospace; font-size: 13px; }
+.badge {
+  display: inline-block; padding: 4px 9px; border-radius: 6px;
+  font-size: 10px; font-weight: 700; font-family: 'Syne', sans-serif; letter-spacing: .3px;
+}
+.b-ok    { background: rgba(0,229,160,.14);  color: var(--green); }
+.b-extra { background: rgba(74,158,255,.14); color: var(--blue); }
+.b-falta { background: rgba(255,107,74,.14); color: var(--red); }
+.b-abs   { background: rgba(255,190,61,.14); color: var(--warn); }
+.b-tol   { background: rgba(0,229,160,.1);   color: var(--green); font-size: 9px; }
+
+.hist-body-inner { border-top: 1px solid var(--border); padding: 12px 14px; display: none; }
+.hist-body-inner.open { display: block; }
+.hist-pontos { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+.hp { background: var(--surf2); border-radius: 8px; padding: 9px 11px; }
+.hp-label { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+.hp-val   { font-family: 'DM Mono', monospace; font-size: 15px; }
+.edit-btn {
+  width: 100%; background: rgba(0,229,160,.08); border: 1.5px solid rgba(0,229,160,.22);
+  border-radius: 10px; padding: 12px; font-size: 13px; font-weight: 700;
+  color: var(--green); cursor: pointer; font-family: 'Syne', sans-serif;
+  min-height: 48px; transition: all .15s;
+}
+.edit-btn:active { background: rgba(0,229,160,.18); }
+
+/* ═══════════════════════════════════════════
+   RELATÓRIO
+═══════════════════════════════════════════ */
+.resumo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.resumo-card { background: var(--surf); border: 1px solid var(--border); border-radius: var(--r); padding: 16px 14px; }
+.rc-label { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.rc-value { font-family: 'DM Mono', monospace; font-size: 24px; font-weight: 500; }
+.rc-sub   { font-size: 11px; color: var(--muted); margin-top: 4px; font-family: 'DM Mono', monospace; }
+.sem-card {
+  background: var(--surf); border: 1px solid var(--border);
+  border-radius: 10px; padding: 13px 14px; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}
+.sem-label { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; flex: 1; min-width: 100px; }
+.sem-horas { font-family: 'DM Mono', monospace; font-size: 13px; }
+
+/* ═══════════════════════════════════════════
+   AUSÊNCIAS
+═══════════════════════════════════════════ */
+.aus-form { background: var(--surf); border: 1px solid var(--border); border-radius: var(--r); padding: 18px; margin-bottom: 14px; }
+.aus-form-title { font-size: 14px; font-weight: 700; margin-bottom: 14px; }
+.aus-fields { display: flex; flex-direction: column; gap: 12px; }
+.aus-fields label { font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); display: block; margin-bottom: 6px; }
+.aus-fields input, .aus-fields select {
+  width: 100%; background: var(--surf2); border: 1.5px solid var(--border);
+  border-radius: 10px; padding: 14px 13px; font-size: 17px; color: var(--text);
+  font-family: 'DM Mono', monospace; outline: none; transition: border-color .2s;
+  min-height: 52px;
+}
+.aus-fields input:focus, .aus-fields select:focus { border-color: var(--green); }
+.aus-item {
+  background: var(--surf); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px; margin-bottom: 8px;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  min-height: 56px;
+}
+.aus-date { font-size: 14px; font-weight: 600; margin-bottom: 2px; }
+.aus-dow  { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+
+/* ═══════════════════════════════════════════
+   CONFIG
+═══════════════════════════════════════════ */
+.cfg-sec { background: var(--surf); border: 1px solid var(--border); border-radius: var(--r); padding: 18px; margin-bottom: 12px; }
+.cfg-title { font-size: 14px; font-weight: 700; margin-bottom: 14px; }
+.cfg-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 0; border-bottom: 1px solid var(--border); gap: 12px;
+  min-height: 52px;
+}
+.cfg-row:last-child { border-bottom: none; padding-bottom: 0; }
+.cfg-row label { font-size: 14px; color: var(--muted); font-family: 'DM Mono', monospace; flex: 1; }
+.cfg-row input, .cfg-row select {
+  background: var(--surf2); border: 1.5px solid var(--border);
+  border-radius: 10px; padding: 10px 12px; font-size: 15px; color: var(--text);
+  font-family: 'DM Mono', monospace; outline: none;
+  width: 140px; min-height: 44px;
+  transition: border-color .2s;
+}
+.cfg-row input:focus, .cfg-row select:focus { border-color: var(--green); }
+
+/* ═══════════════════════════════════════════
+   BOTTOM SHEET
+═══════════════════════════════════════════ */
+.overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,.68);
+  display: none; align-items: flex-end; justify-content: center;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.overlay.open { display: flex; }
+.sheet {
+  background: var(--surf);
+  border-radius: 26px 26px 0 0;
+  border: 1px solid var(--border); border-bottom: none;
+  padding: 0 20px;
+  padding-bottom: calc(24px + var(--si-bot));
+  width: 100%; max-width: 480px;
+  max-height: 92vh; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  transform: translateY(100%);
+  transition: transform .36s cubic-bezier(.32,.72,0,1);
+}
+.overlay.open .sheet { transform: translateY(0); }
+.sheet-handle {
+  width: 38px; height: 5px; background: var(--border);
+  border-radius: 3px; margin: 14px auto 22px;
+}
+.sheet-title { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+.sheet-sub   { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 22px; }
+.sfield { margin-bottom: 16px; }
+.sfield label { display: block; font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
+.sfield input, .sfield select {
+  width: 100%; background: var(--surf2); border: 1.5px solid var(--border);
+  border-radius: 12px; padding: 15px 14px; font-size: 17px; color: var(--text);
+  font-family: 'DM Mono', monospace; outline: none; min-height: 52px;
+  transition: border-color .2s;
+}
+.sfield input:focus, .sfield select:focus { border-color: var(--green); }
+.sheet-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+
+/* ═══════════════════════════════════════════
+   TOAST — above nav + safe area
+═══════════════════════════════════════════ */
+#toast {
+  position: fixed;
+  bottom: calc(var(--nav) + 12px);
+  left: 50%; transform: translateX(-50%) translateY(16px);
+  background: var(--surf); border: 1.5px solid var(--green);
+  border-radius: 14px; padding: 13px 24px;
+  font-size: 14px; font-weight: 600; color: var(--text);
+  z-index: 400; opacity: 0;
+  transition: opacity .22s, transform .22s;
+  white-space: nowrap; pointer-events: none;
+  box-shadow: 0 8px 36px rgba(0,0,0,.55);
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* empty state */
+.empty { text-align: center; padding: 36px 16px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 13px; }
+.empty-icon { font-size: 34px; margin-bottom: 10px; }
+
+/* misc */
+.dot   { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.d-g   { background: var(--green); box-shadow: 0 0 5px var(--green); }
+.d-y   { background: var(--warn);  box-shadow: 0 0 5px var(--warn); }
+.d-b   { background: var(--blue);  box-shadow: 0 0 5px var(--blue); }
+.d-r   { background: var(--red);   box-shadow: 0 0 5px var(--red); }
+</style>
+</head>
+<body>
+
+<!-- ══════ SETUP (primeira vez apenas) ══════ -->
+<div id="setup">
+  <div class="setup-card">
+    <div class="sc-logo">● PontoApp</div>
+    <h1 class="sc-title">Olá! Vamos<br>configurar seu ponto.</h1>
+    <p class="sc-sub">só precisa fazer isso uma vez</p>
+    <div class="fg">
+      <label>Seu nome completo</label>
+      <input type="text" id="s-nome" placeholder="João da Silva"
+             autocomplete="name" autocorrect="off" spellcheck="false">
+    </div>
+    <div class="fg">
+      <label>WhatsApp (DDD + número)</label>
+      <input type="tel" id="s-whats" placeholder="11999998888"
+             inputmode="numeric" autocomplete="tel">
+    </div>
+    <button class="btn-primary" onclick="salvarPerfil()">Começar →</button>
+  </div>
+</div>
+
+<!-- ══════ APP ══════ -->
+<div id="app">
+
+  <!-- header -->
+  <header class="app-hdr">
+    <div class="brand">
+      <span class="brand-mark">● Ponto</span>
+      <span class="brand-sub">App</span>
+    </div>
+    <div class="user-pill" id="user-pill" onclick="navTo('config')">—</div>
+  </header>
+
+  <!-- scroll body -->
+  <div class="app-body">
+
+    <!-- ── HOME ── -->
+    <div id="page-home" class="page active">
+      <div id="alerta-dia1"  style="display:none"></div>
+      <div id="alerta-horas" style="display:none"></div>
+
+      <div class="clock-card">
+        <div class="clock-row">
+          <div>
+            <div class="clock-time" id="clock-time">--:--</div>
+            <div class="clock-date" id="clock-date">—</div>
+          </div>
+          <div class="day-badge" id="day-badge">—</div>
+        </div>
+        <!-- tolerância live -->
+        <div class="tol-bar" id="tol-bar">
+          <span class="tol-dot tol-ok" id="tol-dot"></span>
+          <span id="tol-msg">Carregando…</span>
+        </div>
+      </div>
+
+      <div class="ponto-grid">
+        <button class="ponto-btn pb-e" id="btn-e"  onclick="registrarPonto('entrada')">
+          <span class="btn-icon">🟢</span>
+          <span>Entrada</span>
+          <span class="btn-time" id="bt-e">—</span>
+        </button>
+        <button class="ponto-btn pb-sa" id="btn-sa" onclick="registrarPonto('saida_almoco')">
+          <span class="btn-icon">🟡</span>
+          <span>Saída Almoço</span>
+          <span class="btn-time" id="bt-sa">—</span>
+        </button>
+        <button class="ponto-btn pb-ra" id="btn-ra" onclick="registrarPonto('retorno_almoco')">
+          <span class="btn-icon">🔵</span>
+          <span>Retorno</span>
+          <span class="btn-time" id="bt-ra">—</span>
+        </button>
+        <button class="ponto-btn pb-s"  id="btn-s"  onclick="registrarPonto('saida')">
+          <span class="btn-icon">🔴</span>
+          <span>Saída</span>
+          <span class="btn-time" id="bt-s">—</span>
+        </button>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-mini"><div class="sl">Trabalhado</div><div class="sv ok" id="sv-trab">0h00</div></div>
+        <div class="stat-mini"><div class="sl">Meta</div><div class="sv" id="sv-meta">8h00</div></div>
+        <div class="stat-mini"><div class="sl">Saldo</div><div class="sv" id="sv-saldo">+0h00</div></div>
+      </div>
+
+      <div class="sec-hdr">
+        <span class="sec-label">Registros de hoje</span>
+        <button class="sec-action" onclick="abrirManual(keyHoje())">+ Manual</button>
+      </div>
+      <div class="reg-list" id="reg-list">
+        <div class="empty">Nenhum registro</div>
+      </div>
+    </div><!-- /home -->
+
+    <!-- ── HISTÓRICO ── -->
+    <div id="page-hist" class="page">
+      <div class="page-title">Histórico</div>
+      <div class="page-sub" id="hist-sub">—</div>
+      <div class="filter-row">
+        <select class="sel" id="hist-mes" onchange="renderHist()"></select>
+        <select class="sel" id="hist-ano" onchange="renderHist()"></select>
+        <button class="btn-sec btn-whats" onclick="enviarWhats('mensal')">📱 WhatsApp</button>
+        <button class="btn-sec" onclick="exportCSV()">⬇ CSV</button>
+      </div>
+      <div id="hist-body"></div>
+    </div>
+
+    <!-- ── RELATÓRIO ── -->
+    <div id="page-rel" class="page">
+      <div class="page-title">Relatório</div>
+      <div class="page-sub">Resumo de horas e saldo</div>
+      <div class="filter-row">
+        <select class="sel" id="rel-tipo" onchange="renderRel()">
+          <option value="mensal">Mensal</option>
+          <option value="semanal">Semanal</option>
+        </select>
+        <select class="sel" id="rel-mes" onchange="renderRel()"></select>
+        <select class="sel" id="rel-ano" onchange="renderRel()"></select>
+        <button class="btn-sec btn-whats" onclick="enviarWhats('relatorio')">📱 WhatsApp</button>
+      </div>
+      <div id="rel-body"></div>
+    </div>
+
+    <!-- ── AUSÊNCIAS ── -->
+    <div id="page-aus" class="page">
+      <div class="page-title">Ausências</div>
+      <div class="page-sub">Registre faltas, folgas e feriados</div>
+      <div class="aus-form">
+        <div class="aus-form-title">Adicionar ausência</div>
+        <div class="aus-fields">
+          <div><label>Data</label><input type="date" id="aus-data"></div>
+          <div>
+            <label>Tipo</label>
+            <select id="aus-tipo">
+              <option value="falta">Falta</option>
+              <option value="folga">Folga</option>
+              <option value="feriado">Feriado</option>
+              <option value="ferias">Férias</option>
+              <option value="atestado">Atestado médico</option>
+              <option value="meio_periodo">Meio período</option>
+            </select>
+          </div>
+          <button class="btn-save" onclick="addAusencia()">Adicionar</button>
+        </div>
+      </div>
+      <div class="sec-label" style="margin-bottom:10px">Registros</div>
+      <div id="aus-list"></div>
+    </div>
+
+    <!-- ── CONFIG ── -->
+    <div id="page-config" class="page">
+      <div class="page-title">Configurações</div>
+      <div class="page-sub">Perfil e jornada de trabalho</div>
+
+      <div class="cfg-sec">
+        <div class="cfg-title">Perfil</div>
+        <div class="cfg-row"><label>Nome</label><input type="text" id="cfg-nome" autocorrect="off"></div>
+        <div class="cfg-row"><label>WhatsApp</label><input type="tel" id="cfg-whats" inputmode="numeric"></div>
+        <button class="btn-save" onclick="salvarConfig()">Salvar perfil</button>
+      </div>
+
+      <div class="cfg-sec">
+        <div class="cfg-title">Jornada padrão</div>
+        <div class="cfg-row"><label>Entrada (Seg–Qui)</label><input type="time" id="cfg-ent"></div>
+        <div class="cfg-row"><label>Saída (Seg–Qui)</label><input type="time" id="cfg-sai"></div>
+        <div class="cfg-row"><label>Saída (Sexta)</label><input type="time" id="cfg-sex"></div>
+        <div class="cfg-row"><label>Almoço (min)</label><input type="number" id="cfg-alm" inputmode="numeric" min="0" max="180"></div>
+        <div class="cfg-row"><label>Tolerância entrada/saída</label><input type="number" id="cfg-tol" inputmode="numeric" min="0" max="30" value="5"></div>
+        <button class="btn-save" onclick="salvarJornada()">Salvar jornada</button>
+      </div>
+
+      <div class="cfg-sec">
+        <div class="cfg-title">Dados</div>
+        <button class="btn-sec" style="width:100%;margin-bottom:8px" onclick="exportCSV()">⬇ Exportar CSV</button>
+        <button class="btn-danger" onclick="confirmarLimpar()">🗑 Limpar todos os dados</button>
+      </div>
+    </div>
+
+  </div><!-- /app-body -->
+
+  <!-- bottom nav -->
+  <nav class="bot-nav">
+    <div class="nav-item active" id="nav-home"   onclick="navTo('home')">
+      <span class="nav-icon">⏱</span><span class="nav-label">Ponto</span><span class="nav-dot"></span>
+    </div>
+    <div class="nav-item" id="nav-hist"   onclick="navTo('hist')">
+      <span class="nav-icon">📅</span><span class="nav-label">Histórico</span><span class="nav-dot"></span>
+    </div>
+    <div class="nav-item" id="nav-rel"    onclick="navTo('rel')">
+      <span class="nav-icon">📊</span><span class="nav-label">Relatório</span><span class="nav-dot"></span>
+    </div>
+    <div class="nav-item" id="nav-aus"    onclick="navTo('aus')">
+      <span class="nav-icon">📋</span><span class="nav-label">Ausências</span><span class="nav-dot"></span>
+    </div>
+    <div class="nav-item" id="nav-config" onclick="navTo('config')">
+      <span class="nav-icon">⚙️</span><span class="nav-label">Config</span><span class="nav-dot"></span>
+    </div>
+  </nav>
+
+</div><!-- /app -->
+
+<!-- ══════ SHEET: REGISTRO MANUAL ══════ -->
+<div class="overlay" id="sh-manual" onclick="sheetClose('sh-manual')">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Registro Manual</div>
+    <div class="sheet-sub" id="sh-man-sub">Insira ou edite os horários</div>
+    <div class="sfield"><label>Data</label><input type="date" id="man-data"></div>
+    <div class="sfield"><label>Entrada</label><input type="time" id="man-ent"></div>
+    <div class="sfield"><label>Saída Almoço</label><input type="time" id="man-sa"></div>
+    <div class="sfield"><label>Retorno Almoço</label><input type="time" id="man-ra"></div>
+    <div class="sfield"><label>Saída</label><input type="time" id="man-s"></div>
+    <div class="sheet-actions">
+      <button class="btn-primary" onclick="salvarManual()">Salvar registro</button>
+      <button class="btn-ghost"   onclick="sheetClose('sh-manual')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════ SHEET: CONFIRM ══════ -->
+<div class="overlay" id="sh-confirm" onclick="sheetClose('sh-confirm')">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title" id="conf-title"></div>
+    <div class="sheet-sub"   id="conf-body"></div>
+    <div class="sheet-actions" id="conf-acts"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* ══════════════════════════════════════════════
+   STORAGE
+══════════════════════════════════════════════ */
+const LS = {
+  get: k => { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set: (k,v) => localStorage.setItem(k, JSON.stringify(v)),
+};
+
+/* ══════════════════════════════════════════════
+   CONSTANTES
+══════════════════════════════════════════════ */
+const MESES   = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const DS      = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const DS_FULL = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+const TIPOS_AUS = { falta:'Falta', folga:'Folga', feriado:'Feriado', ferias:'Férias', atestado:'Atestado', meio_periodo:'Meio Período' };
+const JORNADA_DEF = { entrada:'08:00', saida:'18:00', saida_sex:'17:00', almoco_min:60, tolerancia:5 };
+
+/* ══════════════════════════════════════════════
+   GETTERS
+══════════════════════════════════════════════ */
+const getPerfil    = () => LS.get('perfil') || {};
+const getJornada   = () => Object.assign({}, JORNADA_DEF, LS.get('jornada') || {});
+const getRegistros = () => LS.get('registros') || {};
+const getAusencias = () => LS.get('ausencias') || [];
+
+/* ══════════════════════════════════════════════
+   INIT — persiste perfil, só mostra setup se vazio
+══════════════════════════════════════════════ */
+window.addEventListener('DOMContentLoaded', () => {
+  popularSelects();
+  initRelogio();
+
+  const p = getPerfil();
+  if (p.nome && p.whats) {
+    // já tem perfil → vai direto pro app, sem passar pelo setup
+    document.getElementById('setup').style.display = 'none';
+    iniciarApp();
+  }
+  // setup permanece visível até salvarPerfil() ser chamado
+});
+
+function salvarPerfil() {
+  const nome  = document.getElementById('s-nome').value.trim();
+  const whats = document.getElementById('s-whats').value.replace(/\D/g,'');
+  if (!nome)              { toast('Informe seu nome'); return; }
+  if (whats.length < 10)  { toast('WhatsApp inválido — mínimo 10 dígitos'); return; }
+  LS.set('perfil', {nome, whats});
+  document.getElementById('setup').style.display = 'none';
+  iniciarApp();
+}
+
+function iniciarApp() {
+  const p = getPerfil();
+  const j = getJornada();
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('user-pill').textContent = (p.nome || '—').split(' ')[0];
+
+  // popular campos de config
+  document.getElementById('cfg-nome').value  = p.nome  || '';
+  document.getElementById('cfg-whats').value = p.whats || '';
+  document.getElementById('cfg-ent').value   = j.entrada;
+  document.getElementById('cfg-sai').value   = j.saida;
+  document.getElementById('cfg-sex').value   = j.saida_sex;
+  document.getElementById('cfg-alm').value   = j.almoco_min;
+  document.getElementById('cfg-tol').value   = j.tolerancia;
+
+  renderHome();
+  verificarAlertas();
+}
+
+/* ══════════════════════════════════════════════
+   RELÓGIO + BARRA DE TOLERÂNCIA
+══════════════════════════════════════════════ */
+function initRelogio() {
+  function tick() {
+    const n = new Date();
+    const el = document.getElementById('clock-time');
+    const de = document.getElementById('clock-date');
+    const db = document.getElementById('day-badge');
+    if (el) el.textContent = n.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    if (de) de.textContent = n.toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+    if (db) db.textContent = DS[n.getDay()];
+    atualizarToleranciaBar(n);
+    updateSaldoLive();
+  }
+  tick(); setInterval(tick, 1000);
+}
+
+function atualizarToleranciaBar(now) {
+  const bar = document.getElementById('tol-bar');
+  const dot = document.getElementById('tol-dot');
+  const msg = document.getElementById('tol-msg');
+  if (!bar) return;
+
+  const j = getJornada();
+  const dow = now.getDay();
+  if (dow === 0 || dow === 6) {
+    dot.className = 'tol-dot tol-warn';
+    msg.textContent = 'Fim de semana — sem jornada';
+    return;
+  }
+
+  const tol = j.tolerancia; // minutos
+  const nowMin = now.getHours()*60 + now.getMinutes();
+  const entMin = toMin(j.entrada);
+  const saiMin = toMin(dow===5 ? j.saida_sex : j.saida);
+
+  const near = (ref, label) => {
+    const diff = nowMin - ref;
+    if (Math.abs(diff) <= tol) return label;
+    return null;
+  };
+
+  const nearEnt = near(entMin, 'Horário de entrada');
+  const nearSai = near(saiMin, 'Horário de saída');
+
+  if (nearEnt || nearSai) {
+    const label = nearEnt || nearSai;
+    const ref   = nearEnt ? entMin : saiMin;
+    const diff  = nowMin - ref;
+    const diffStr = diff === 0 ? 'agora' : (diff > 0 ? `+${diff}min` : `${diff}min`);
+    dot.className = 'tol-dot tol-warn';
+    msg.textContent = `⚡ ${label} (${diffStr}) — dentro da tolerância ±${tol}min`;
+  } else {
+    dot.className = 'tol-dot tol-ok';
+    const proxRef = nowMin < entMin ? entMin : (nowMin < saiMin ? saiMin : null);
+    if (proxRef) {
+      const resta = proxRef - nowMin;
+      const label = proxRef === entMin ? 'entrada' : 'saída';
+      msg.textContent = `${resta}min para o horário de ${label}`;
+    } else {
+      msg.textContent = 'Jornada encerrada';
+    }
+  }
+}
+
+/* ══════════════════════════════════════════════
+   CHAVE / DIA
+══════════════════════════════════════════════ */
+function keyHoje() {
+  const d = new Date();
+  return fmtKey(d.getFullYear(), d.getMonth()+1, d.getDate());
+}
+function fmtKey(y,m,d) {
+  return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+function getDia(key)      { return {...((getRegistros()[key]) || {})}; }
+function setDia(key, data) { const r = getRegistros(); r[key]=data; LS.set('registros',r); }
+
+/* ══════════════════════════════════════════════
+   TOLERÂNCIA — lógica
+   ── Entrada e Saída: aplicar ±5min
+   ── Saída Almoço e Retorno: sem tolerância (exata)
+══════════════════════════════════════════════ */
+function calcSaldoComTolerancia(trabMin, meta, tipo) {
+  // tipo: 'entrada' | 'saida' | 'almoco' | none
+  // Para entrada: se chegou até 5min atrasado → conta como no horário
+  // Para saída:   se saiu até 5min antes      → conta como no horário
+  // Lógica já embutida no calcTrab via horários registrados;
+  // esta função ajusta o saldo final.
+  // Na prática a tolerância age sobre o BADGE de status apenas,
+  // não sobre as horas efetivamente trabalhadas.
+  return trabMin - meta;
+}
+
+function isNaTolerancia(horaRegistrada, horaEsperada, tipo) {
+  // tipo 'entrada': atraso de até TOL min → ok
+  // tipo 'saida':   saída até TOL min antes → ok
+  const j = getJornada();
+  const tol = j.tolerancia;
+  const reg = toMin(horaRegistrada);
+  const esp = toMin(horaEsperada);
+  const diff = reg - esp;
+  if (tipo === 'entrada') return diff >= -tol && diff <= tol;
+  if (tipo === 'saida')   return diff >= -tol && diff <= tol;
+  return false;
+}
+
+/* ══════════════════════════════════════════════
+   REGISTRAR PONTO (tempo real)
+══════════════════════════════════════════════ */
+function registrarPonto(tipo) {
+  const key = keyHoje();
+  const dia = getDia(key);
+  const now = new Date();
+  const hora = now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+
+  // validações de ordem
+  if (tipo==='entrada'        && dia.entrada)         { toast('Entrada já registrada'); return; }
+  if (tipo==='saida_almoco'   && !dia.entrada)        { toast('Registre a entrada primeiro'); return; }
+  if (tipo==='saida_almoco'   && dia.saida_almoco)    { toast('Saída do almoço já registrada'); return; }
+  if (tipo==='retorno_almoco' && !dia.saida_almoco)   { toast('Registre a saída do almoço primeiro'); return; }
+  if (tipo==='retorno_almoco' && dia.retorno_almoco)  { toast('Retorno já registrado'); return; }
+  if (tipo==='saida'          && !dia.entrada)        { toast('Registre a entrada primeiro'); return; }
+  if (tipo==='saida'          && dia.saida)           { toast('Saída já registrada'); return; }
+
+  dia[tipo] = hora;
+  if (!dia._manual) dia._manual = {};
+  // marca como automático (não manual)
+  dia._auto = dia._auto || {};
+  dia._auto[tipo] = true;
+
+  setDia(key, dia);
+
+  // feedback de tolerância
+  const j   = getJornada();
+  const dow = now.getDay();
+  const tol = j.tolerancia;
+  let tolMsg = '';
+  if (tipo === 'entrada') {
+    const diff = now.getHours()*60+now.getMinutes() - toMin(j.entrada);
+    if (Math.abs(diff) <= tol) tolMsg = ` (±${tol}min ✓)`;
+  }
+  if (tipo === 'saida') {
+    const esp  = dow===5 ? j.saida_sex : j.saida;
+    const diff = now.getHours()*60+now.getMinutes() - toMin(esp);
+    if (Math.abs(diff) <= tol) tolMsg = ` (±${tol}min ✓)`;
+  }
+
+  toast(`✓ ${labelTipo(tipo)} às ${hora}${tolMsg}`);
+  renderHome();
+}
+
+function labelTipo(t) {
+  return {entrada:'Entrada',saida_almoco:'Saída Almoço',retorno_almoco:'Retorno Almoço',saida:'Saída'}[t]||t;
+}
+
+/* ══════════════════════════════════════════════
+   RENDER HOME
+══════════════════════════════════════════════ */
+function renderHome() {
+  const key  = keyHoje();
+  const dia  = getDia(key);
+  const hoje = new Date();
+  const meta = metaDia(hoje);
+
+  // horários nos botões
+  const map = {entrada:'e', saida_almoco:'sa', retorno_almoco:'ra', saida:'s'};
+  Object.entries(map).forEach(([t,id]) => {
+    const el = document.getElementById('bt-'+id);
+    if (el) el.textContent = dia[t] || '—';
+  });
+
+  // disabled state
+  document.getElementById('btn-e').disabled  = !!dia.entrada;
+  document.getElementById('btn-sa').disabled = !dia.entrada || !!dia.saida_almoco;
+  document.getElementById('btn-ra').disabled = !dia.saida_almoco || !!dia.retorno_almoco;
+  document.getElementById('btn-s').disabled  = !dia.entrada || !!dia.saida;
+
+  document.getElementById('sv-meta').textContent = minToHM(meta);
+
+  renderRegList(key);
+  updateSaldoLive();
+}
+
+function renderRegList(key) {
+  const dia   = getDia(key);
+  const lista = document.getElementById('reg-list');
+  const j     = getJornada();
+  const dow   = (()=>{ const [y,m,d]=key.split('-'); return new Date(+y,+m-1,+d).getDay(); })();
+  const tipos = ['entrada','saida_almoco','retorno_almoco','saida'];
+  const presentes = tipos.filter(t => dia[t]);
+
+  if (!presentes.length) {
+    lista.innerHTML = '<div class="empty"><div class="empty-icon">⏰</div>Nenhum registro hoje</div>';
+    return;
+  }
+
+  const cores = {entrada:'d-g', saida_almoco:'d-y', retorno_almoco:'d-b', saida:'d-r'};
+
+  lista.innerHTML = presentes.map(t => {
+    const isManual = dia._manual && dia._manual[t];
+    // tag de tolerância
+    let tolTag = '';
+    if (t==='entrada' || t==='saida') {
+      const esp = t==='entrada' ? j.entrada : (dow===5 ? j.saida_sex : j.saida);
+      if (isNaTolerancia(dia[t], esp, t)) {
+        tolTag = '<span class="tol-tag">±5min ✓</span>';
+      }
+    }
+    return `
+      <div class="reg-item">
+        <span class="dot ${cores[t]}"></span>
+        <div class="reg-info">
+          <div class="reg-tipo">${labelTipo(t)}${isManual?'<span class="reg-tag">MANUAL</span>':''}${tolTag}</div>
+          <div class="reg-hora">${dia[t]}</div>
+        </div>
+        <button class="reg-del" onclick="deletarReg('${key}','${t}')">✕</button>
+      </div>`;
+  }).join('');
+}
+
+function deletarReg(key, tipo) {
+  const dia = getDia(key);
+  delete dia[tipo];
+  if (dia._manual) delete dia._manual[tipo];
+  if (dia._auto)   delete dia._auto[tipo];
+  setDia(key, dia);
+  if (key===keyHoje()) renderHome();
+  renderHist();
+  toast('Registro removido');
+}
+
+function updateSaldoLive() {
+  const key  = keyHoje();
+  const dia  = getDia(key);
+  const hoje = new Date();
+  const meta = metaDia(hoje);
+  const trab = calcTrab(dia, hoje);
+  const sld  = trab - meta;
+  const sv   = document.getElementById('sv-trab');
+  const ss   = document.getElementById('sv-saldo');
+  if (sv) sv.textContent = minToHM(trab);
+  if (ss) {
+    ss.textContent = (sld>=0?'+':'-') + minToHM(Math.abs(sld));
+    ss.className = 'sv ' + (sld>=0?'ok':'warn');
+  }
+}
+
+/* ══════════════════════════════════════════════
+   REGISTRO MANUAL
+══════════════════════════════════════════════ */
+function abrirManual(key) {
+  const dia = getDia(key);
+  const [y,m,d] = key.split('-');
+  const date = new Date(+y,+m-1,+d);
+  document.getElementById('man-data').value = key;
+  document.getElementById('man-ent').value  = dia.entrada || '';
+  document.getElementById('man-sa').value   = dia.saida_almoco || '';
+  document.getElementById('man-ra').value   = dia.retorno_almoco || '';
+  document.getElementById('man-s').value    = dia.saida || '';
+  document.getElementById('sh-man-sub').textContent =
+    date.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+  sheetOpen('sh-manual');
+}
+
+function salvarManual() {
+  const key    = document.getElementById('man-data').value;
+  if (!key) { toast('Selecione uma data'); return; }
+
+  const ent  = document.getElementById('man-ent').value;
+  const sa   = document.getElementById('man-sa').value;
+  const ra   = document.getElementById('man-ra').value;
+  const sai  = document.getElementById('man-s').value;
+
+  // validações de sequência
+  if (ent && sa  && toMin(sa)  < toMin(ent)) { toast('Saída do almoço deve ser após entrada'); return; }
+  if (sa  && ra  && toMin(ra)  < toMin(sa))  { toast('Retorno deve ser após saída do almoço'); return; }
+  if (ent && sai && toMin(sai) < toMin(ent)) { toast('Saída deve ser após entrada'); return; }
+  if (ra  && sai && toMin(sai) < toMin(ra))  { toast('Saída deve ser após retorno'); return; }
+
+  const dia  = getDia(key);
+  const man  = dia._manual || {};
+
+  const setField = (campo, valor, chave) => {
+    if (valor) { dia[chave]=valor; man[chave]=true; }
+    else        { delete dia[chave]; delete man[chave]; }
+  };
+
+  setField(ent,  ent,  'entrada');
+  setField(sa,   sa,   'saida_almoco');
+  setField(ra,   ra,   'retorno_almoco');
+  setField(sai,  sai,  'saida');
+
+  dia._manual = man;
+  setDia(key, dia);
+  sheetClose('sh-manual');
+  toast('✓ Registro salvo');
+  if (key===keyHoje()) renderHome();
+  renderHist();
+}
+
+/* ══════════════════════════════════════════════
+   CÁLCULOS
+══════════════════════════════════════════════ */
+function metaDia(date) {
+  const dow = date.getDay();
+  if (dow===0||dow===6) return 0;
+  const j   = getJornada();
+  const sai = dow===5 ? j.saida_sex : j.saida;
+  return toMin(sai) - toMin(j.entrada) - j.almoco_min;
+}
+
+function toMin(hhmm) {
+  if (!hhmm) return 0;
+  const [h,m] = hhmm.split(':').map(Number);
+  return h*60+m;
+}
+
+function minToHM(min) {
+  const abs = Math.abs(Math.round(min));
+  return `${Math.floor(abs/60)}h${String(abs%60).padStart(2,'0')}`;
+}
+
+function calcTrab(dia, nowObj) {
+  if (!dia.entrada) return 0;
+  const ent = toMin(dia.entrada);
+  const saiRef = dia.saida
+    ? toMin(dia.saida)
+    : (nowObj ? nowObj.getHours()*60+nowObj.getMinutes() : null);
+  if (!saiRef) return 0;
+
+  if (dia.saida_almoco) {
+    const sAlm = toMin(dia.saida_almoco);
+    const antes = Math.max(0, sAlm - ent);
+    if (!dia.retorno_almoco) return antes;
+    return antes + Math.max(0, saiRef - toMin(dia.retorno_almoco));
+  }
+  return Math.max(0, saiRef - ent);
+}
+
+/* saldo com tolerância aplicada ao badge de status */
+function statusDia(dia, date) {
+  const j    = getJornada();
+  const tol  = j.tolerancia;
+  const dow  = date.getDay();
+  const meta = metaDia(date);
+  const trab = calcTrab(dia, null);
+  if (!dia.saida) return null; // incompleto
+
+  let saldo = trab - meta;
+
+  // Ajuste de tolerância: se entrada ou saída dentro do range, não penaliza
+  if (dia.entrada) {
+    const diffEnt = toMin(dia.entrada) - toMin(j.entrada);
+    if (diffEnt > 0 && diffEnt <= tol) saldo += diffEnt; // entrada atrasada mas na tolerância
+  }
+  if (dia.saida) {
+    const espSai = dow===5 ? j.saida_sex : j.saida;
+    const diffSai = toMin(espSai) - toMin(dia.saida);
+    if (diffSai > 0 && diffSai <= tol) saldo -= diffSai; // saiu cedo mas na tolerância
+    // saldo neutralizado → não conta como falta
+    if (saldo < 0 && Math.abs(saldo) <= tol) saldo = 0;
+  }
+
+  return saldo;
+}
+
+function calcEstat(mes, ano) {
+  const regs = getRegistros();
+  const aus  = getAusencias();
+  const hoje = new Date();
+  const diasMes = new Date(ano,mes+1,0).getDate();
+  const j    = getJornada();
+  const tol  = j.tolerancia;
+
+  let diasUteis=0, diasTrab=0, totTrab=0, totMeta=0, totExtra=0, totFalta=0;
+
+  for (let d=1; d<=diasMes; d++) {
+    const date = new Date(ano,mes,d);
+    const dow  = date.getDay();
+    if (dow===0||dow===6) continue;
+    diasUteis++;
+    const key = fmtKey(ano,mes+1,d);
+    const a   = aus.find(x=>x.data===key);
+    const isFut = date > hoje;
+
+    if (a && ['feriado','folga','ferias','atestado'].includes(a.tipo)) continue;
+
+    const dia  = regs[key] || {};
+    const meta = a?.tipo==='meio_periodo' ? metaDia(date)/2 : metaDia(date);
+    totMeta += meta;
+    if (isFut) continue;
+
+    if (dia.entrada) {
+      diasTrab++;
+      const trab = calcTrab(dia, key===keyHoje() ? hoje : null);
+      totTrab += trab;
+
+      // saldo com tolerância
+      let sld = trab - meta;
+      if (dia.saida) {
+        const diffEnt = toMin(dia.entrada) - toMin(j.entrada);
+        if (diffEnt>0 && diffEnt<=tol) sld += diffEnt;
+        const espSai = dow===5 ? j.saida_sex : j.saida;
+        const diffSai = toMin(espSai) - toMin(dia.saida);
+        if (diffSai>0 && diffSai<=tol) { sld -= diffSai; if (sld<0&&Math.abs(sld)<=tol) sld=0; }
+      }
+      if (sld>0) totExtra += sld; else totFalta += Math.abs(sld);
+    } else {
+      totFalta += meta;
+    }
+  }
+
+  const saldo = totTrab - totMeta;
+  const diasHE = totFalta>0 ? Math.ceil(totFalta/60)+2 : 0;
+  return { diasUteis, diasTrab, totTrab, totMeta, totExtra, totFalta, saldo, diasHE };
+}
+
+function diasUteisRestantes(mes, ano) {
+  const hoje = new Date(); const diasMes = new Date(ano,mes+1,0).getDate();
+  let c=0;
+  for (let d=hoje.getDate(); d<=diasMes; d++) {
+    const dw = new Date(ano,mes,d).getDay();
+    if (dw!==0&&dw!==6) c++;
+  }
+  return c;
+}
+
+/* ══════════════════════════════════════════════
+   HISTÓRICO
+══════════════════════════════════════════════ */
+function renderHist() {
+  const mes = parseInt(document.getElementById('hist-mes').value);
+  const ano = parseInt(document.getElementById('hist-ano').value);
+  const sub = document.getElementById('hist-sub');
+  if (sub) sub.textContent = `${MESES[mes]} ${ano}`;
+
+  const regs = getRegistros();
+  const aus  = getAusencias();
+  const j    = getJornada();
+  const tol  = j.tolerancia;
+  const diasMes = new Date(ano,mes+1,0).getDate();
+  let html = '';
+
+  for (let d=diasMes; d>=1; d--) {
+    const date = new Date(ano,mes,d);
+    const dow  = date.getDay();
+    if (dow===0||dow===6) continue;
+    const key  = fmtKey(ano,mes+1,d);
+    const dia  = regs[key] || {};
+    const a    = aus.find(x=>x.data===key);
+    const meta = metaDia(date);
+    const trab = dia.entrada ? calcTrab(dia, key===keyHoje()?new Date():null) : 0;
+    const isFut = date > new Date();
+    const isManual = dia._manual && Object.keys(dia._manual).length>0;
+
+    // badge
+    let badge = '';
+    if (a) {
+      badge = `<span class="badge b-abs">${TIPOS_AUS[a.tipo]||a.tipo}</span>`;
+    } else if (key===keyHoje()) {
+      badge = `<span class="badge b-ok">Hoje</span>`;
+    } else if (isFut) {
+      badge = `<span class="badge" style="background:rgba(107,114,128,.1);color:var(--muted)">Futuro</span>`;
+    } else if (!dia.entrada) {
+      badge = `<span class="badge b-falta">Sem reg.</span>`;
+    } else {
+      // aplicar tolerância no saldo
+      const sld = statusDia(dia, date);
+      if (sld===null) {
+        badge = `<span class="badge b-abs">Incompleto</span>`;
+      } else if (sld===0) {
+        badge = `<span class="badge b-ok">OK ±${tol}min</span>`;
+      } else if (sld>5) {
+        badge = `<span class="badge b-extra">+${minToHM(sld)}</span>`;
+      } else if (sld<-5) {
+        badge = `<span class="badge b-falta">${minToHM(sld)}</span>`;
+      } else {
+        badge = `<span class="badge b-ok">OK</span>`;
+      }
+    }
+
+    html += `
+      <div class="hist-card">
+        <div class="hist-hdr" onclick="toggleDay('hd-${key}')">
+          <div>
+            <div class="hist-date">${String(d).padStart(2,'0')}/${String(mes+1).padStart(2,'0')}
+              <span style="font-size:11px;color:var(--muted);font-weight:400"> ${DS_FULL[dow]}</span>
+            </div>
+          </div>
+          <div class="hist-right">
+            ${dia.entrada?`<span class="hist-horas">${minToHM(trab)}</span>`:''}
+            ${badge}
+            ${isManual?'<span style="font-size:11px">✏️</span>':''}
+          </div>
+        </div>
+        <div class="hist-body-inner" id="hd-${key}">
+          <div class="hist-pontos">
+            <div class="hp"><div class="hp-label">Entrada</div><div class="hp-val">${dia.entrada||'—'}</div></div>
+            <div class="hp"><div class="hp-label">S. Almoço</div><div class="hp-val">${dia.saida_almoco||'—'}</div></div>
+            <div class="hp"><div class="hp-label">Retorno</div><div class="hp-val">${dia.retorno_almoco||'—'}</div></div>
+            <div class="hp"><div class="hp-label">Saída</div><div class="hp-val">${dia.saida||'—'}</div></div>
+          </div>
+          <button class="edit-btn" onclick="abrirManual('${key}')">✏️ Editar / Inserir horários</button>
+        </div>
+      </div>`;
+  }
+
+  const el = document.getElementById('hist-body');
+  el.innerHTML = html || '<div class="empty"><div class="empty-icon">📭</div>Sem dados neste mês</div>';
+}
+
+function toggleDay(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('open');
+}
+
+/* ══════════════════════════════════════════════
+   RELATÓRIO
+══════════════════════════════════════════════ */
+function renderRel() {
+  const tipo = document.getElementById('rel-tipo').value;
+  const mes  = parseInt(document.getElementById('rel-mes').value);
+  const ano  = parseInt(document.getElementById('rel-ano').value);
+  const s    = calcEstat(mes, ano);
+  const j    = getJornada();
+
+  let html = `
+    <div class="resumo-grid">
+      <div class="resumo-card">
+        <div class="rc-label">Dias trabalhados</div>
+        <div class="rc-value ok">${s.diasTrab}</div>
+        <div class="rc-sub">de ${s.diasUteis} úteis</div>
+      </div>
+      <div class="resumo-card">
+        <div class="rc-label">Horas trabalhadas</div>
+        <div class="rc-value">${minToHM(s.totTrab)}</div>
+        <div class="rc-sub">meta ${minToHM(s.totMeta)}</div>
+      </div>
+      <div class="resumo-card">
+        <div class="rc-label">Horas extras</div>
+        <div class="rc-value info">${minToHM(s.totExtra)}</div>
+        <div class="rc-sub">&nbsp;</div>
+      </div>
+      <div class="resumo-card">
+        <div class="rc-label">Horas faltantes</div>
+        <div class="rc-value ${s.totFalta>0?'danger':'ok'}">${minToHM(s.totFalta)}</div>
+        <div class="rc-sub">tol. ±${j.tolerancia}min aplicada</div>
+      </div>
+      <div class="resumo-card">
+        <div class="rc-label">Saldo geral</div>
+        <div class="rc-value ${s.saldo>=0?'ok':'danger'}">${s.saldo>=0?'+':''}${minToHM(s.saldo)}</div>
+        <div class="rc-sub">&nbsp;</div>
+      </div>
+      <div class="resumo-card">
+        <div class="rc-label">Prev. HE p/ zerar</div>
+        <div class="rc-value warn">${s.diasHE>0?s.diasHE+' dias':'OK ✓'}</div>
+        <div class="rc-sub">${s.diasHE>0?'+1h/dia (+2 margem)':''}</div>
+      </div>
+    </div>`;
+
+  if (tipo==='semanal') html += renderSemanas(mes, ano);
+  document.getElementById('rel-body').innerHTML = html;
+}
+
+function renderSemanas(mes, ano) {
+  const regs = getRegistros();
+  const diasMes = new Date(ano,mes+1,0).getDate();
+  const semanas = {};
+  let semN=1, lastDow=-1;
+
+  for (let d=1; d<=diasMes; d++) {
+    const date = new Date(ano,mes,d); const dow=date.getDay();
+    if (dow===0||dow===6) continue;
+    if (dow<=lastDow&&d>1) semN++;
+    lastDow=dow;
+    if (!semanas[semN]) semanas[semN]={meta:0,trab:0,ini:d,fim:d};
+    semanas[semN].fim=d;
+    const key=fmtKey(ano,mes+1,d); const dia=regs[key]||{};
+    semanas[semN].meta += metaDia(date);
+    semanas[semN].trab += dia.entrada ? calcTrab(dia, key===keyHoje()?new Date():null) : 0;
+  }
+
+  let html='<div class="sec-label" style="margin-bottom:10px;margin-top:4px">Por semana</div>';
+  for (const [n,s] of Object.entries(semanas)) {
+    const sld=s.trab-s.meta;
+    html+=`
+      <div class="sem-card">
+        <div class="sem-label">Semana ${n} · dias ${s.ini}–${s.fim}</div>
+        <span class="sem-horas">${minToHM(s.trab)}/${minToHM(s.meta)}</span>
+        <span class="badge ${sld>=0?'b-extra':'b-falta'}">${sld>=0?'+':''}${minToHM(sld)}</span>
+      </div>`;
+  }
+  return html;
+}
+
+/* ══════════════════════════════════════════════
+   AUSÊNCIAS
+══════════════════════════════════════════════ */
+function addAusencia() {
+  const data = document.getElementById('aus-data').value;
+  const tipo = document.getElementById('aus-tipo').value;
+  if (!data) { toast('Selecione uma data'); return; }
+  const aus = getAusencias();
+  const idx = aus.findIndex(a=>a.data===data);
+  if (idx>=0) aus[idx]={data,tipo}; else aus.push({data,tipo});
+  aus.sort((a,b)=>b.data.localeCompare(a.data));
+  LS.set('ausencias',aus);
+  renderAus(); toast('✓ Ausência registrada');
+}
+
+function renderAus() {
+  const aus = getAusencias();
+  const el  = document.getElementById('aus-list');
+  if (!aus.length) { el.innerHTML='<div class="empty"><div class="empty-icon">✅</div>Nenhuma ausência</div>'; return; }
+  el.innerHTML = aus.map((a,i)=>{
+    const [y,m,d]=a.data.split('-');
+    const date=new Date(+y,+m-1,+d);
+    return `
+      <div class="aus-item">
+        <div>
+          <div class="aus-date">${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}</div>
+          <div class="aus-dow">${DS_FULL[date.getDay()]}</div>
+        </div>
+        <span class="badge b-abs">${TIPOS_AUS[a.tipo]||a.tipo}</span>
+        <button class="reg-del" onclick="rmAusencia(${i})">✕</button>
+      </div>`;
+  }).join('');
+}
+
+function rmAusencia(i) {
+  const aus=getAusencias(); aus.splice(i,1); LS.set('ausencias',aus);
+  renderAus(); toast('Ausência removida');
+}
+
+/* ══════════════════════════════════════════════
+   CONFIG
+══════════════════════════════════════════════ */
+function salvarConfig() {
+  const nome  = document.getElementById('cfg-nome').value.trim();
+  const whats = document.getElementById('cfg-whats').value.replace(/\D/g,'');
+  if (!nome||!whats) { toast('Preencha nome e WhatsApp'); return; }
+  LS.set('perfil',{nome,whats});
+  document.getElementById('user-pill').textContent = nome.split(' ')[0];
+  toast('✓ Perfil salvo');
+}
+
+function salvarJornada() {
+  LS.set('jornada',{
+    entrada:     document.getElementById('cfg-ent').value,
+    saida:       document.getElementById('cfg-sai').value,
+    saida_sex:   document.getElementById('cfg-sex').value,
+    almoco_min:  parseInt(document.getElementById('cfg-alm').value)||60,
+    tolerancia:  parseInt(document.getElementById('cfg-tol').value)||5,
+  });
+  toast('✓ Jornada salva');
+  renderHome();
+}
+
+function confirmarLimpar() {
+  showConfirm('⚠️ Limpar dados',
+    'Todos os registros serão apagados permanentemente. Esta ação não pode ser desfeita.',
+    [
+      { label:'Cancelar',    cls:'btn-ghost',   fn:()=>sheetClose('sh-confirm') },
+      { label:'Limpar tudo', cls:'btn-primary',
+        style:'background:var(--red);color:#fff',
+        fn:()=>{ localStorage.clear(); sheetClose('sh-confirm'); location.reload(); }
+      },
+    ]
+  );
+}
+
+/* ══════════════════════════════════════════════
+   WHATSAPP
+══════════════════════════════════════════════ */
+function gerarTexto(mes, ano) {
+  const s = calcEstat(mes, ano);
+  const p = getPerfil();
+  const j = getJornada();
+  const regs = getRegistros();
+  const diasMes = new Date(ano,mes+1,0).getDate();
+  let det='';
+  for (let d=1; d<=diasMes; d++) {
+    const key=fmtKey(ano,mes+1,d);
+    const dia=regs[key]||{};
+    if (dia.entrada) { const t=calcTrab(dia,null); det+=`\n  ${String(d).padStart(2,'0')}: ${dia.entrada}→${dia.saida||'?'} (${minToHM(t)})`; }
+  }
+  return `📋 *Relatório de Ponto — ${MESES[mes]}/${ano}*\n👤 ${p.nome}\n\n` +
+    `✅ Dias: ${s.diasTrab}/${s.diasUteis}\n` +
+    `⏱ Trabalhado: ${minToHM(s.totTrab)}\n` +
+    `🎯 Meta: ${minToHM(s.totMeta)}\n` +
+    `➕ Extras: ${minToHM(s.totExtra)}\n` +
+    `➖ Faltas: ${minToHM(s.totFalta)}\n` +
+    `📊 Saldo: ${s.saldo>=0?'+':''}${minToHM(s.saldo)}\n` +
+    `⏰ Tolerância: ±${j.tolerancia}min (entrada/saída)\n` +
+    (s.diasHE>0?`⚠️ HE p/ zerar: ${s.diasHE} dias\n`:'') +
+    `\n📆 Detalhamento:${det}\n\n_PontoApp_`;
+}
+
+function enviarWhats(origem) {
+  const p=getPerfil(); if (!p.whats) { toast('Configure o WhatsApp em Config'); return; }
+  let mes,ano;
+  if (origem==='relatorio') { mes=parseInt(document.getElementById('rel-mes').value); ano=parseInt(document.getElementById('rel-ano').value); }
+  else if (origem==='mensal') { mes=parseInt(document.getElementById('hist-mes').value); ano=parseInt(document.getElementById('hist-ano').value); }
+  else { const n=new Date(); mes=n.getMonth(); ano=n.getFullYear(); }
+  window.open(`https://wa.me/55${p.whats}?text=${encodeURIComponent(gerarTexto(mes,ano))}`,'_blank');
+}
+
+/* ══════════════════════════════════════════════
+   ALERTAS
+══════════════════════════════════════════════ */
+function verificarAlertas() {
+  const hoje=new Date();
+  const d=hoje.getDate(), mes=hoje.getMonth(), ano=hoje.getFullYear();
+  const chave=`${ano}-${mes}-${d}`;
+
+  // Dia 01
+  if (d===1 && LS.get('alerta_dia1')!==chave) {
+    const mp=mes===0?11:mes-1, ap=mes===0?ano-1:ano;
+    const b=document.getElementById('alerta-dia1');
+    b.style.display='flex'; b.className='alert-banner info';
+    b.innerHTML=`<span class="alert-text">📅 Dia 01! Relatório de ${MESES[mp]}/${ap} pronto.</span>
+      <button class="alert-btn" onclick="enviarWhats('dia1');this.closest('.alert-banner').style.display='none'">📱 Enviar</button>`;
+    LS.set('alerta_dia1',chave);
+  }
+
+  // Horas faltantes
+  const s=calcEstat(mes,ano);
+  if (s.totFalta>0 && LS.get('alerta_horas')!==chave) {
+    const rest=diasUteisRestantes(mes,ano);
+    if (s.totFalta >= (rest-2)*60) {
+      const b=document.getElementById('alerta-horas');
+      b.style.display='flex'; b.className='alert-banner warn';
+      b.innerHTML=`<span class="alert-text">⚠️ ${minToHM(s.totFalta)} de falta · ${rest} dias restantes · precisará de ${s.diasHE} dias de HE</span>
+        <button class="alert-btn" onclick="enviarAlertaHoras();this.closest('.alert-banner').style.display='none'">📱 Alertar</button>`;
+      LS.set('alerta_horas',chave);
+    }
+  }
+}
+
+function enviarAlertaHoras() {
+  const p=getPerfil(); if (!p.whats){toast('Configure o WhatsApp');return;}
+  const n=new Date(); const s=calcEstat(n.getMonth(),n.getFullYear());
+  const rest=diasUteisRestantes(n.getMonth(),n.getFullYear());
+  const txt=`⚠️ *Alerta — Horas Faltantes*\n\nOlá, ${p.nome}!\n\n`+
+    `Você tem *${minToHM(s.totFalta)}* de horas faltantes.\n`+
+    `Restam *${rest} dias úteis* no mês.\n`+
+    `Precisará de *${s.diasHE} dias* fazendo +1h/dia.\n\n⏱ Não deixe acumular!\n\n_PontoApp_`;
+  window.open(`https://wa.me/55${p.whats}?text=${encodeURIComponent(txt)}`,'_blank');
+}
+
+/* ══════════════════════════════════════════════
+   EXPORT CSV
+══════════════════════════════════════════════ */
+function exportCSV() {
+  const mes=parseInt(document.getElementById('hist-mes')?.value??new Date().getMonth());
+  const ano=parseInt(document.getElementById('hist-ano')?.value??new Date().getFullYear());
+  const regs=getRegistros(); const aus=getAusencias(); const j=getJornada();
+  let csv='Data,DiaSemana,Entrada,SaidaAlmoco,RetornoAlmoco,Saida,Trabalhado,Meta,Saldo,NaTolerancia,Status\n';
+  const diasMes=new Date(ano,mes+1,0).getDate();
+  for (let d=1;d<=diasMes;d++) {
+    const date=new Date(ano,mes,d); const dow=date.getDay();
+    if (dow===0||dow===6) continue;
+    const key=fmtKey(ano,mes+1,d); const dia=regs[key]||{};
+    const a=aus.find(x=>x.data===key);
+    const meta=metaDia(date); const trab=dia.entrada?calcTrab(dia,null):0;
+    const sld=dia.saida?statusDia(dia,date):'';
+    const tolEnt = dia.entrada ? isNaTolerancia(dia.entrada,j.entrada,'entrada') : false;
+    const tolSai = dia.saida  ? isNaTolerancia(dia.saida, dow===5?j.saida_sex:j.saida,'saida') : false;
+    const tolStr = (tolEnt||tolSai) ? 'Sim' : 'Não';
+    const status=a?TIPOS_AUS[a.tipo]||a.tipo:(dia.entrada?'Trabalhado':'Sem registro');
+    csv+=`${key},${DS[dow]},${dia.entrada||''},${dia.saida_almoco||''},${dia.retorno_almoco||''},${dia.saida||''},${dia.entrada?minToHM(trab):''},${minToHM(meta)},${sld!==''?(sld>=0?'+':'')+minToHM(Math.abs(sld)):''},${tolStr},${status}\n`;
+  }
+  const a2=document.createElement('a');
+  a2.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a2.download=`ponto_${String(mes+1).padStart(2,'0')}_${ano}.csv`;
+  a2.click();
+}
+
+/* ══════════════════════════════════════════════
+   SELECTS
+══════════════════════════════════════════════ */
+function popularSelects() {
+  const agora=new Date();
+  [['hist-mes','hist-ano'],['rel-mes','rel-ano']].forEach(([mId,aId])=>{
+    const mEl=document.getElementById(mId), aEl=document.getElementById(aId);
+    if (!mEl||!aEl) return;
+    MESES.forEach((m,i)=>{
+      const o=document.createElement('option');
+      o.value=i; o.textContent=m; if(i===agora.getMonth()) o.selected=true;
+      mEl.appendChild(o);
+    });
+    for (let y=agora.getFullYear()-2;y<=agora.getFullYear()+1;y++) {
+      const o=document.createElement('option');
+      o.value=y; o.textContent=y; if(y===agora.getFullYear()) o.selected=true;
+      aEl.appendChild(o);
+    }
+  });
+  document.getElementById('aus-data').value=keyHoje();
+}
+
+/* ══════════════════════════════════════════════
+   NAVEGAÇÃO
+══════════════════════════════════════════════ */
+function navTo(name) {
+  ['home','hist','rel','aus','config'].forEach(n=>{
+    document.getElementById('page-'+n)?.classList.toggle('active',n===name);
+    document.getElementById('nav-'+n)?.classList.toggle('active',n===name);
+  });
+  document.querySelector('.app-body').scrollTop=0;
+  if (name==='hist')   renderHist();
+  if (name==='rel')    renderRel();
+  if (name==='aus')    renderAus();
+}
+
+/* ══════════════════════════════════════════════
+   BOTTOM SHEET
+══════════════════════════════════════════════ */
+function sheetOpen(id) {
+  const el=document.getElementById(id);
+  el.style.display='flex';
+  requestAnimationFrame(()=>{ requestAnimationFrame(()=>el.classList.add('open')); });
+}
+function sheetClose(id) {
+  const el=document.getElementById(id);
+  el.classList.remove('open');
+  setTimeout(()=>{ el.style.display='none'; },360);
+}
+function showConfirm(title,body,actions) {
+  document.getElementById('conf-title').textContent=title;
+  document.getElementById('conf-body').textContent=body;
+  const ac=document.getElementById('conf-acts');
+  ac.innerHTML='';
+  actions.forEach(a=>{
+    const b=document.createElement('button');
+    b.textContent=a.label; b.className=a.cls;
+    if (a.style) b.style.cssText=a.style;
+    b.onclick=a.fn; ac.appendChild(b);
+  });
+  sheetOpen('sh-confirm');
+}
+
+/* ══════════════════════════════════════════════
+   TOAST
+══════════════════════════════════════════════ */
+let _tt;
+function toast(msg) {
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(_tt);
+  _tt=setTimeout(()=>el.classList.remove('show'),2600);
+}
+</script>
+</body>
+</html>
