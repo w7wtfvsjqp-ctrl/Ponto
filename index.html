@@ -604,6 +604,7 @@ select { -webkit-appearance: none; appearance: none; }
 .d-y   { background: var(--warn);  box-shadow: 0 0 5px var(--warn); }
 .d-b   { background: var(--blue);  box-shadow: 0 0 5px var(--blue); }
 .d-r   { background: var(--red);   box-shadow: 0 0 5px var(--red); }
+.d-abs { background: var(--purple, #a855f7); box-shadow: 0 0 5px var(--purple, #a855f7); }
 </style>
 </head>
 <body>
@@ -741,14 +742,28 @@ select { -webkit-appearance: none; appearance: none; }
           <div><label>Data</label><input type="date" id="aus-data"></div>
           <div>
             <label>Tipo</label>
-            <select id="aus-tipo">
+            <select id="aus-tipo" onchange="toggleAusHoras()">
               <option value="falta">Falta</option>
               <option value="folga">Folga</option>
               <option value="feriado">Feriado</option>
               <option value="ferias">Férias</option>
               <option value="atestado">Atestado médico</option>
               <option value="meio_periodo">Meio período</option>
+              <option value="falta_parcial">Falta parcial (período)</option>
             </select>
+          </div>
+          <div id="aus-horas-wrap" style="display:none">
+            <label>Período da falta</label>
+            <div style="display:flex; gap:10px">
+              <div style="flex:1">
+                <label style="font-size:10px;margin-bottom:4px">De</label>
+                <input type="time" id="aus-de">
+              </div>
+              <div style="flex:1">
+                <label style="font-size:10px;margin-bottom:4px">Até</label>
+                <input type="time" id="aus-ate">
+              </div>
+            </div>
           </div>
           <button class="btn-save" onclick="addAusencia()">Adicionar</button>
         </div>
@@ -856,7 +871,7 @@ const LS = {
 const MESES   = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const DS      = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 const DS_FULL = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
-const TIPOS_AUS = { falta:'Falta', folga:'Folga', feriado:'Feriado', ferias:'Férias', atestado:'Atestado', meio_periodo:'Meio Período' };
+const TIPOS_AUS = { falta:'Falta', folga:'Folga', feriado:'Feriado', ferias:'Férias', atestado:'Atestado', meio_periodo:'Meio Período', falta_parcial:'Falta Parcial' };
 const JORNADA_DEF = { entrada:'08:00', saida:'18:00', saida_sex:'17:00', almoco_min:60, tolerancia:5 };
 
 /* ══════════════════════════════════════════════
@@ -1105,14 +1120,16 @@ function renderRegList(key) {
   const tipos = ['entrada','saida_almoco','retorno_almoco','saida'];
   const presentes = tipos.filter(t => dia[t]);
 
-  if (!presentes.length) {
+  const aus = getAusencias().find(a => a.data===key && a.tipo==='falta_parcial');
+
+  if (!presentes.length && !aus) {
     lista.innerHTML = '<div class="empty"><div class="empty-icon">⏰</div>Nenhum registro hoje</div>';
     return;
   }
 
   const cores = {entrada:'d-g', saida_almoco:'d-y', retorno_almoco:'d-b', saida:'d-r'};
 
-  lista.innerHTML = presentes.map(t => {
+  let html = presentes.map(t => {
     const isManual = dia._manual && dia._manual[t];
     // tag de tolerância
     let tolTag = '';
@@ -1132,6 +1149,20 @@ function renderRegList(key) {
         <button class="reg-del" onclick="deletarReg('${key}','${t}')">✕</button>
       </div>`;
   }).join('');
+
+  if (aus) {
+    html += `
+      <div class="reg-item">
+        <span class="dot d-abs"></span>
+        <div class="reg-info">
+          <div class="reg-tipo">Falta Parcial</div>
+          <div class="reg-hora">${aus.de}–${aus.ate}</div>
+        </div>
+        <button class="reg-del" onclick="rmAusenciaPorData('${key}')">✕</button>
+      </div>`;
+  }
+
+  lista.innerHTML = html;
 }
 
 function deletarReg(key, tipo) {
@@ -1150,7 +1181,7 @@ function updateSaldoLive() {
   const dia  = getDia(key);
   const hoje = new Date();
   const meta = metaDia(hoje);
-  const trab = calcTrab(dia, hoje);
+  const trab = calcTrab(dia, hoje, descontoDia(key));
   const sld  = trab - meta;
   const sv   = document.getElementById('sv-trab');
   const ss   = document.getElementById('sv-saldo');
@@ -1244,7 +1275,12 @@ function minToHM(min) {
   return `${Math.floor(abs/60)}h${String(abs%60).padStart(2,'0')}`;
 }
 
-function calcTrab(dia, nowObj) {
+function descontoDia(key) {
+  const a = getAusencias().find(x => x.data===key && x.tipo==='falta_parcial');
+  return a ? horasAusencia(a) * 60 : 0;
+}
+
+function calcTrab(dia, nowObj, descontoMin=0) {
   if (!dia.entrada) return 0;
   const ent = toMin(dia.entrada);
   const saiRef = dia.saida
@@ -1252,22 +1288,24 @@ function calcTrab(dia, nowObj) {
     : (nowObj ? nowObj.getHours()*60+nowObj.getMinutes() : null);
   if (!saiRef) return 0;
 
+  let total;
   if (dia.saida_almoco) {
     const sAlm = toMin(dia.saida_almoco);
     const antes = Math.max(0, sAlm - ent);
-    if (!dia.retorno_almoco) return antes;
-    return antes + Math.max(0, saiRef - toMin(dia.retorno_almoco));
+    total = !dia.retorno_almoco ? antes : antes + Math.max(0, saiRef - toMin(dia.retorno_almoco));
+  } else {
+    total = Math.max(0, saiRef - ent);
   }
-  return Math.max(0, saiRef - ent);
+  return Math.max(0, total - descontoMin);
 }
 
 /* saldo com tolerância aplicada ao badge de status */
-function statusDia(dia, date) {
+function statusDia(dia, date, descontoMin=0) {
   const j    = getJornada();
   const tol  = j.tolerancia;
   const dow  = date.getDay();
   const meta = metaDia(date);
-  const trab = calcTrab(dia, null);
+  const trab = calcTrab(dia, null, descontoMin);
   if (!dia.saida) return null; // incompleto
 
   let saldo = trab - meta;
@@ -1306,6 +1344,7 @@ function calcEstat(mes, ano) {
     const key = fmtKey(ano,mes+1,d);
     const a   = aus.find(x=>x.data===key);
     const isFut = date > hoje;
+    const desconto = (a && a.tipo==='falta_parcial') ? horasAusencia(a)*60 : 0;
 
     if (a && ['feriado','folga','ferias','atestado'].includes(a.tipo)) continue;
 
@@ -1318,7 +1357,7 @@ function calcEstat(mes, ano) {
 
     if (dia.entrada) {
       diasTrab++;
-      const trab = calcTrab(dia, isHoje ? hoje : null);
+      const trab = calcTrab(dia, isHoje ? hoje : null, desconto);
       totTrab += trab;
 
       // o dia de hoje só entra no cálculo de extra/falta a partir de amanhã
@@ -1381,14 +1420,15 @@ function renderHist() {
     const dia  = regs[key] || {};
     const a    = aus.find(x=>x.data===key);
     const meta = metaDia(date);
-    const trab = dia.entrada ? calcTrab(dia, key===keyHoje()?new Date():null) : 0;
+    const desconto = (a && a.tipo==='falta_parcial') ? horasAusencia(a)*60 : 0;
+    const trab = dia.entrada ? calcTrab(dia, key===keyHoje()?new Date():null, desconto) : 0;
     const isFut = date > new Date();
     const isManual = dia._manual && Object.keys(dia._manual).length>0;
 
     // badge
     let badge = '';
     if (a) {
-      badge = `<span class="badge b-abs">${TIPOS_AUS[a.tipo]||a.tipo}</span>`;
+      badge = `<span class="badge b-abs">${labelAusencia(a)}</span>`;
     } else if (key===keyHoje()) {
       badge = `<span class="badge b-ok">Hoje</span>`;
     } else if (isFut) {
@@ -1397,7 +1437,7 @@ function renderHist() {
       badge = `<span class="badge b-falta">Sem reg.</span>`;
     } else {
       // aplicar tolerância no saldo
-      const sld = statusDia(dia, date);
+      const sld = statusDia(dia, date, desconto);
       if (sld===null) {
         badge = `<span class="badge b-abs">Incompleto</span>`;
       } else if (sld===0) {
@@ -1509,7 +1549,7 @@ function renderSemanas(mes, ano) {
     semanas[semN].fim=d;
     const key=fmtKey(ano,mes+1,d); const dia=regs[key]||{};
     semanas[semN].meta += metaDia(date);
-    semanas[semN].trab += dia.entrada ? calcTrab(dia, key===keyHoje()?new Date():null) : 0;
+    semanas[semN].trab += dia.entrada ? calcTrab(dia, key===keyHoje()?new Date():null, descontoDia(key)) : 0;
   }
 
   let html='<div class="sec-label" style="margin-bottom:10px;margin-top:4px">Por semana</div>';
@@ -1528,16 +1568,47 @@ function renderSemanas(mes, ano) {
 /* ══════════════════════════════════════════════
    AUSÊNCIAS
 ══════════════════════════════════════════════ */
+function toggleAusHoras() {
+  const tipo = document.getElementById('aus-tipo').value;
+  document.getElementById('aus-horas-wrap').style.display = tipo==='falta_parcial' ? 'block' : 'none';
+}
+
+function horasAusencia(a) {
+  // duração em horas (decimal) a partir do período de/até
+  if (a.tipo!=='falta_parcial' || !a.de || !a.ate) return 0;
+  return Math.max(0, toMin(a.ate) - toMin(a.de)) / 60;
+}
+
+function labelAusencia(a) {
+  const base = TIPOS_AUS[a.tipo] || a.tipo;
+  if (a.tipo==='falta_parcial' && a.de && a.ate) return `${base} · ${a.de}–${a.ate}`;
+  return base;
+}
+
 function addAusencia() {
   const data = document.getElementById('aus-data').value;
   const tipo = document.getElementById('aus-tipo').value;
   if (!data) { toast('Selecione uma data'); return; }
+
+  let de=null, ate=null;
+  if (tipo==='falta_parcial') {
+    de  = document.getElementById('aus-de').value;
+    ate = document.getElementById('aus-ate').value;
+    if (!de || !ate)        { toast('Informe o período da falta'); return; }
+    if (toMin(ate)<=toMin(de)) { toast('Horário final deve ser após o inicial'); return; }
+  }
+
   const aus = getAusencias();
   const idx = aus.findIndex(a=>a.data===data);
-  if (idx>=0) aus[idx]={data,tipo}; else aus.push({data,tipo});
+  const registro = (tipo==='falta_parcial') ? {data,tipo,de,ate} : {data,tipo};
+  if (idx>=0) aus[idx]=registro; else aus.push(registro);
   aus.sort((a,b)=>b.data.localeCompare(a.data));
   LS.set('ausencias',aus);
+  document.getElementById('aus-de').value  = '';
+  document.getElementById('aus-ate').value = '';
   renderAus(); toast('✓ Ausência registrada');
+  if (data===keyHoje()) renderHome();
+  renderHist();
 }
 
 function renderAus() {
@@ -1553,10 +1624,20 @@ function renderAus() {
           <div class="aus-date">${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}</div>
           <div class="aus-dow">${DS_FULL[date.getDay()]}</div>
         </div>
-        <span class="badge b-abs">${TIPOS_AUS[a.tipo]||a.tipo}</span>
+        <span class="badge b-abs">${labelAusencia(a)}</span>
         <button class="reg-del" onclick="rmAusencia(${i})">✕</button>
       </div>`;
   }).join('');
+}
+
+function rmAusenciaPorData(data) {
+  const aus = getAusencias();
+  const idx = aus.findIndex(a=>a.data===data);
+  if (idx>=0) { aus.splice(idx,1); LS.set('ausencias',aus); }
+  renderAus();
+  if (data===keyHoje()) renderHome();
+  renderHist();
+  toast('Ausência removida');
 }
 
 function rmAusencia(i) {
@@ -1614,7 +1695,7 @@ function gerarTexto(mes, ano) {
   for (let d=1; d<=diasMes; d++) {
     const key=fmtKey(ano,mes+1,d);
     const dia=regs[key]||{};
-    if (dia.entrada) { const t=calcTrab(dia,null); det+=`\n  ${String(d).padStart(2,'0')}: ${dia.entrada}→${dia.saida||'?'} (${minToHM(t)})`; }
+    if (dia.entrada) { const t=calcTrab(dia,null,descontoDia(key)); det+=`\n  ${String(d).padStart(2,'0')}: ${dia.entrada}→${dia.saida||'?'} (${minToHM(t)})`; }
   }
   return `📋 *Relatório de Ponto — ${MESES[mes]}/${ano}*\n👤 ${p.nome}\n\n` +
     `✅ Dias: ${s.diasTrab}/${s.diasUteis}\n` +
@@ -1703,12 +1784,13 @@ function exportCSV() {
     if (dow===0||dow===6) continue;
     const key=fmtKey(ano,mes+1,d); const dia=regs[key]||{};
     const a=aus.find(x=>x.data===key);
-    const meta=metaDia(date); const trab=dia.entrada?calcTrab(dia,null):0;
-    const sld=dia.saida?statusDia(dia,date):'';
+    const meta=metaDia(date); const desconto=(a&&a.tipo==='falta_parcial')?horasAusencia(a)*60:0;
+    const trab=dia.entrada?calcTrab(dia,null,desconto):0;
+    const sld=dia.saida?statusDia(dia,date,desconto):'';
     const tolEnt = dia.entrada ? isNaTolerancia(dia.entrada,j.entrada,'entrada') : false;
     const tolSai = dia.saida  ? isNaTolerancia(dia.saida, dow===5?j.saida_sex:j.saida,'saida') : false;
     const tolStr = (tolEnt||tolSai) ? 'Sim' : 'Não';
-    const status=a?TIPOS_AUS[a.tipo]||a.tipo:(dia.entrada?'Trabalhado':'Sem registro');
+    const status=a?labelAusencia(a):(dia.entrada?'Trabalhado':'Sem registro');
     csv+=`${key},${DS[dow]},${dia.entrada||''},${dia.saida_almoco||''},${dia.retorno_almoco||''},${dia.saida||''},${dia.entrada?minToHM(trab):''},${minToHM(meta)},${sld!==''?(sld>=0?'+':'')+minToHM(Math.abs(sld)):''},${tolStr},${status}\n`;
   }
   const a2=document.createElement('a');
@@ -1805,4 +1887,3 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
- 
